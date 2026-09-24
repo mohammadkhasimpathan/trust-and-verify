@@ -1,7 +1,12 @@
-FROM node:20-alpine
+FROM node:22-bookworm-slim
 
-# Use non-root user
-RUN addgroup -S trustgroup && adduser -S trustuser -G trustgroup
+# Install native build prerequisites required by better-sqlite3 / node-gyp
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3 make g++ && \
+    rm -rf /var/lib/apt/lists/*
+
+# Use non-root user (Debian syntax)
+RUN groupadd -r trustgroup && useradd -r -g trustgroup trustuser
 
 WORKDIR /usr/src/app
 
@@ -23,6 +28,5 @@ EXPOSE 3000
 
 # Set environment to production
 ENV NODE_ENV=production
-ENV PORT=3000
 
 CMD ["node", "server.js"]
