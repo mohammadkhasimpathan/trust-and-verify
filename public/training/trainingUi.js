@@ -265,7 +265,7 @@ class TrainingUi {
     let answers = {};
     
     q.questions.forEach(question => {
-      const selected = form.querySelector(\`input[name="q_\${question.id}"]:checked\`);
+      const selected = form.querySelector(`input[name="q_${question.id}"]:checked`);
       if (selected) {
         answers[question.id] = parseInt(selected.value, 10);
       }

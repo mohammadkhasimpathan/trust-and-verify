@@ -3,7 +3,13 @@
  * The core Unified Risk Engine. Normalizes scores, categorizes risk, and produces structured outputs.
  */
 
-const { THRESHOLDS, CONFIDENCE, SEVERITY } = require('./riskTypes') || window.RiskTypes;
+let _riskTypes;
+if (typeof require === 'function') {
+  try { _riskTypes = require('./riskTypes'); } catch (e) { /* browser fallback below */ }
+}
+if (!_riskTypes && typeof window !== 'undefined') { _riskTypes = window.RiskTypes; }
+// _riskTypes.THRESHOLDS, CONFIDENCE, SEVERITY are accessed via _riskTypes to avoid
+// redeclaring consts that riskTypes.js already placed in the browser global scope.
 
 class RiskEngine {
   /**
@@ -27,7 +33,7 @@ class RiskEngine {
         uniqueIndicators.set(ind.id, {
           ...ind,
           weight: typeof ind.weight === 'number' ? ind.weight : 0,
-          severity: ind.severity || SEVERITY.INFO,
+          severity: ind.severity || _riskTypes.SEVERITY.INFO,
           source: ind.source || 'LOCAL_HEURISTIC'
         });
       }
@@ -38,12 +44,12 @@ class RiskEngine {
     // 2. Aggregate Score
     let rawScore = 0;
     let hasSimulation = false;
-    let confidence = CONFIDENCE.HIGH; // Default to HIGH, degrade if weak heuristics are used
+    let confidence = _riskTypes.CONFIDENCE.HIGH; // Default to HIGH, degrade if weak heuristics are used
 
     processedIndicators.forEach(ind => {
       rawScore += ind.weight;
       if (ind.source === 'SIMULATION') hasSimulation = true;
-      if (ind.severity === SEVERITY.INFO && ind.weight === 0) {
+      if (ind.severity === _riskTypes.SEVERITY.INFO && ind.weight === 0) {
         // purely informational, doesn't affect confidence negatively by default
       }
     });
@@ -52,10 +58,10 @@ class RiskEngine {
     let score = Math.max(0, Math.min(100, rawScore));
 
     // 4. Determine Severity & Verdict based on centralized thresholds
-    let finalSeverity = SEVERITY.SAFE;
+    let finalSeverity = _riskTypes.SEVERITY.SAFE;
     let finalVerdict = 'SAFE';
 
-    for (const t of THRESHOLDS) {
+    for (const t of _riskTypes.THRESHOLDS) {
       if (score >= t.min && score <= t.max) {
         finalSeverity = t.severity;
         finalVerdict = t.verdict;
@@ -90,8 +96,8 @@ class RiskEngine {
       return 'No significant risk indicators detected. Content appears benign.';
     }
 
-    const highRiskCount = indicators.filter(i => i.severity === SEVERITY.CRITICAL || i.severity === SEVERITY.HIGH).length;
-    const medRiskCount = indicators.filter(i => i.severity === SEVERITY.MEDIUM).length;
+    const highRiskCount = indicators.filter(i => i.severity === _riskTypes.SEVERITY.CRITICAL || i.severity === _riskTypes.SEVERITY.HIGH).length;
+    const medRiskCount = indicators.filter(i => i.severity === _riskTypes.SEVERITY.MEDIUM).length;
 
     if (highRiskCount > 1) {
       return `Multiple high-risk indicators were detected. The analyzed content demonstrates a strong correlation with malicious activity.`;

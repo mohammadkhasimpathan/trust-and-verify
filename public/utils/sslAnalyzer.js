@@ -3,7 +3,19 @@
  * Frontend adapter to call the backend /api/inspect-ssl endpoint.
  */
 
-const { SEVERITY, CATEGORY, SOURCE } = (typeof window !== 'undefined' && window.RiskTypes) ? window.RiskTypes : require('../core/riskTypes');
+// RiskTypes constants.
+// In Node.js, load via require (each file gets its own module scope — no collision).
+// In browser, riskTypes.js is loaded before this file and declares SEVERITY, CATEGORY,
+// and SOURCE as consts in the shared global script scope. They are already available;
+// redeclaring them here would cause "already declared" SyntaxErrors.
+// We expose them via a local _rt alias to support both environments cleanly.
+const _rt = (typeof require === 'function')
+  ? (() => { try { return require('../core/riskTypes'); } catch(e) { return (typeof window !== 'undefined' ? window.RiskTypes : {}); } })()
+  : (typeof window !== 'undefined' ? window.RiskTypes : {});
+/* jshint ignore:start */
+// In the browser these names are already const-declared by riskTypes.js; we read
+// them via the _rt alias to avoid SyntaxErrors from duplicate declarations.
+/* jshint ignore:end */
 
 class SslAnalyzer {
   static async inspect(hostname, port = 443) {
@@ -26,10 +38,10 @@ class SslAnalyzer {
       return {
         indicators: [{
           id: 'SSL_INSPECTION_FAILED',
-          category: CATEGORY.NETWORK,
-          severity: SEVERITY.HIGH,
+          category: _rt.CATEGORY.NETWORK,
+          severity: _rt.SEVERITY.HIGH,
           weight: 40,
-          source: SOURCE.LOCAL_HEURISTIC,
+          source: _rt.SOURCE.LOCAL_HEURISTIC,
           title: 'SSL Inspection Failed',
           description: e.message,
           evidence: e.message,
@@ -47,10 +59,10 @@ class SslAnalyzer {
     if (data.authorized === false) {
       indicators.push({
         id: 'CERTIFICATE_NOT_AUTHORIZED',
-        category: CATEGORY.AUTHENTICATION,
-        severity: SEVERITY.CRITICAL,
+        category: _rt.CATEGORY.AUTHENTICATION,
+        severity: _rt.SEVERITY.CRITICAL,
         weight: 80,
-        source: SOURCE.LIVE_CONNECTION || SOURCE.LOCAL_HEURISTIC,
+        source: _rt.SOURCE.LIVE_CONNECTION || _rt.SOURCE.LOCAL_HEURISTIC,
         title: 'Certificate Not Authorized',
         description: 'The certificate is not trusted by the server.',
         evidence: data.authorizationError || 'Unknown Error',
@@ -61,10 +73,10 @@ class SslAnalyzer {
     if (!data.hostnameMatched) {
       indicators.push({
         id: 'CERTIFICATE_HOSTNAME_MISMATCH',
-        category: CATEGORY.AUTHENTICATION,
-        severity: SEVERITY.CRITICAL,
+        category: _rt.CATEGORY.AUTHENTICATION,
+        severity: _rt.SEVERITY.CRITICAL,
         weight: 80,
-        source: SOURCE.LIVE_CONNECTION || SOURCE.LOCAL_HEURISTIC,
+        source: _rt.SOURCE.LIVE_CONNECTION || _rt.SOURCE.LOCAL_HEURISTIC,
         title: 'Hostname Mismatch',
         description: 'The certificate does not match the requested hostname.',
         evidence: `Requested: ${data.hostname}, Found: ${cert.subject?.CN || 'Unknown'}`,
@@ -75,10 +87,10 @@ class SslAnalyzer {
     if (data.daysUntilExpiry < 0) {
       indicators.push({
         id: 'CERTIFICATE_EXPIRED',
-        category: CATEGORY.AUTHENTICATION,
-        severity: SEVERITY.CRITICAL,
+        category: _rt.CATEGORY.AUTHENTICATION,
+        severity: _rt.SEVERITY.CRITICAL,
         weight: 80,
-        source: SOURCE.LIVE_CONNECTION || SOURCE.LOCAL_HEURISTIC,
+        source: _rt.SOURCE.LIVE_CONNECTION || _rt.SOURCE.LOCAL_HEURISTIC,
         title: 'Certificate Expired',
         description: 'The TLS certificate has expired.',
         evidence: `Expired on ${cert.valid_to}`,
@@ -87,10 +99,10 @@ class SslAnalyzer {
     } else if (data.daysUntilExpiry < 15) {
       indicators.push({
         id: 'CERTIFICATE_EXPIRING_SOON',
-        category: CATEGORY.AUTHENTICATION,
-        severity: SEVERITY.MEDIUM,
+        category: _rt.CATEGORY.AUTHENTICATION,
+        severity: _rt.SEVERITY.MEDIUM,
         weight: 20,
-        source: SOURCE.LIVE_CONNECTION || SOURCE.LOCAL_HEURISTIC,
+        source: _rt.SOURCE.LIVE_CONNECTION || _rt.SOURCE.LOCAL_HEURISTIC,
         title: 'Certificate Expiring Soon',
         description: 'The TLS certificate will expire in less than 15 days.',
         evidence: `Expires in ${Math.floor(data.daysUntilExpiry)} days.`,
@@ -102,10 +114,10 @@ class SslAnalyzer {
     if (data.protocol === 'TLSv1.1' || data.protocol === 'TLSv1') {
       indicators.push({
         id: 'TLS_VERSION_WEAK',
-        category: CATEGORY.NETWORK,
-        severity: SEVERITY.HIGH,
+        category: _rt.CATEGORY.NETWORK,
+        severity: _rt.SEVERITY.HIGH,
         weight: 40,
-        source: SOURCE.LIVE_CONNECTION || SOURCE.LOCAL_HEURISTIC,
+        source: _rt.SOURCE.LIVE_CONNECTION || _rt.SOURCE.LOCAL_HEURISTIC,
         title: 'Weak TLS Version',
         description: 'The server uses an outdated and insecure TLS protocol.',
         evidence: data.protocol,

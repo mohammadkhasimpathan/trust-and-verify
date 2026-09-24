@@ -715,8 +715,6 @@ async function runEmlScan() {
   }
 }
 
-}
-
 // EML UI Rendering Logic
 function populateEmlResults(results) {
   const container = document.getElementById('eml-results-container');
@@ -1700,7 +1698,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Start sequence
   setTimeout(runBootSequence, 200);
-}
+});
 
 // ============================================================================
 // PHASE 3: URL, QR, Domain & SSL Analyzers

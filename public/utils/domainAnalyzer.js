@@ -3,7 +3,19 @@
  * Analyzes domains for security indicators (registrable domain, IDN, brand impersonation).
  */
 
-const { SEVERITY, CATEGORY, SOURCE } = (typeof window !== 'undefined' && window.RiskTypes) ? window.RiskTypes : require('../core/riskTypes');
+// RiskTypes constants.
+// In Node.js, load via require (each file gets its own module scope — no collision).
+// In browser, riskTypes.js is loaded before this file and declares SEVERITY, CATEGORY,
+// and SOURCE as consts in the shared global script scope. They are already available;
+// redeclaring them here would cause "already declared" SyntaxErrors.
+// We expose them via a local _rt alias to support both environments cleanly.
+const _rt = (typeof require === 'function')
+  ? (() => { try { return require('../core/riskTypes'); } catch(e) { return (typeof window !== 'undefined' ? window.RiskTypes : {}); } })()
+  : (typeof window !== 'undefined' ? window.RiskTypes : {});
+/* jshint ignore:start */
+// In the browser these names are already const-declared by riskTypes.js; we read
+// them via the _rt alias to avoid SyntaxErrors from duplicate declarations.
+/* jshint ignore:end */
 
 const MONITORED_BRAND_TOKENS = [
   "microsoft", "google", "apple", "amazon", "paypal", "instagram", "facebook", "whatsapp"
@@ -62,10 +74,10 @@ class DomainAnalyzer {
       if (subdomains.includes(brand)) {
         indicators.push({
           id: 'BRAND_SUBDOMAIN',
-          category: CATEGORY.DOMAIN,
-          severity: SEVERITY.HIGH,
+          category: _rt.CATEGORY.DOMAIN,
+          severity: _rt.SEVERITY.HIGH,
           weight: 40,
-          source: SOURCE.LOCAL_HEURISTIC,
+          source: _rt.SOURCE.LOCAL_HEURISTIC,
           title: 'Brand Token in Subdomain',
           description: 'A brand-like token appears outside the registrable domain.',
           evidence: `Token: ${brand}, Registrable: ${registrableDomain}`,
@@ -78,10 +90,10 @@ class DomainAnalyzer {
     if (effectiveHost.includes('xn--')) {
       indicators.push({
         id: 'PUNYCODE_DOMAIN',
-        category: CATEGORY.DOMAIN,
-        severity: SEVERITY.HIGH,
+        category: _rt.CATEGORY.DOMAIN,
+        severity: _rt.SEVERITY.HIGH,
         weight: 40,
-        source: SOURCE.LOCAL_HEURISTIC,
+        source: _rt.SOURCE.LOCAL_HEURISTIC,
         title: 'Punycode Domain',
         description: 'Internationalized domain detected. Additional verification is recommended because visually similar characters can be used for impersonation.',
         evidence: effectiveHost,
@@ -90,10 +102,10 @@ class DomainAnalyzer {
     } else if (/[^\x00-\x7F]/.test(effectiveHost)) {
       indicators.push({
         id: 'NON_ASCII_DOMAIN',
-        category: CATEGORY.DOMAIN,
-        severity: SEVERITY.MEDIUM,
+        category: _rt.CATEGORY.DOMAIN,
+        severity: _rt.SEVERITY.MEDIUM,
         weight: 30,
-        source: SOURCE.LOCAL_HEURISTIC,
+        source: _rt.SOURCE.LOCAL_HEURISTIC,
         title: 'Non-ASCII Domain',
         description: 'Internationalized domain detected. Additional verification is recommended.',
         evidence: effectiveHost,
@@ -105,10 +117,10 @@ class DomainAnalyzer {
     if (effectiveHost.length > 63) {
       indicators.push({
         id: 'LONG_HOSTNAME',
-        category: CATEGORY.DOMAIN,
-        severity: SEVERITY.LOW,
+        category: _rt.CATEGORY.DOMAIN,
+        severity: _rt.SEVERITY.LOW,
         weight: 5,
-        source: SOURCE.LOCAL_HEURISTIC,
+        source: _rt.SOURCE.LOCAL_HEURISTIC,
         title: 'Unusually Long Hostname',
         description: 'The hostname length exceeds common usage patterns.',
         evidence: `Length: ${effectiveHost.length}`,
