@@ -3,16 +3,9 @@
  * Analyzes phone numbers for scam history and contains logic/transcripts for the AI Call Interceptor simulation.
  */
 
-let RiskEngine;
-if (typeof require === 'function') {
-  try {
-    RiskEngine = require('../core/riskEngine');
-  } catch (e) {
-    RiskEngine = typeof window !== 'undefined' ? window.RiskEngine : null;
-  }
-} else {
-  RiskEngine = typeof window !== 'undefined' ? window.RiskEngine : null;
-}
+var _re = (typeof require === 'function' && typeof window === 'undefined') 
+  ? require('../core/riskEngine') 
+  : (typeof window !== 'undefined' ? window.RiskEngine : null);
 
 // Blacklisted phone numbers representing simulated cyber threat calls
 const CALLED_BLACKLIST = {
@@ -300,8 +293,8 @@ function analyzePhoneNumber(numberStr) {
   }
 
   let finalRiskResult = null;
-  if (RiskEngine) {
-    finalRiskResult = RiskEngine.analyze({
+  if (_re) {
+    finalRiskResult = _re.analyze({
       module: 'call',
       indicators,
       metadata: { cleanNumber }

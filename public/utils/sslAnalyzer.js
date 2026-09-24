@@ -9,7 +9,7 @@
 // and SOURCE as consts in the shared global script scope. They are already available;
 // redeclaring them here would cause "already declared" SyntaxErrors.
 // We expose them via a local _rt alias to support both environments cleanly.
-const _rt = (typeof require === 'function')
+var _rt = (typeof require === 'function')
   ? (() => { try { return require('../core/riskTypes'); } catch(e) { return (typeof window !== 'undefined' ? window.RiskTypes : {}); } })()
   : (typeof window !== 'undefined' ? window.RiskTypes : {});
 /* jshint ignore:start */

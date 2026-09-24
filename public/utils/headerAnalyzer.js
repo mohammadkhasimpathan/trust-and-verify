@@ -29,23 +29,23 @@
 
 // ─── Dependency Loading ───────────────────────────────────────────────────────
 // Support both Node.js (require) and browser (globals injected via script tags)
-let EmailParser, DomainUtils, RiskEngine;
+var EmailParser, DomainUtils, _re;
 
 if (typeof require === 'function') {
   try {
     EmailParser = require('./emailParser');
     DomainUtils = require('./domainUtils');
-    RiskEngine = require('../core/riskEngine');
+    _re = require('../core/riskEngine');
   } catch (e) {
     // If running in browser without bundler, fall back to globals
     EmailParser = (typeof window !== 'undefined') ? window.EmailParser : null;
     DomainUtils = (typeof window !== 'undefined') ? window.DomainUtils : null;
-    RiskEngine = (typeof window !== 'undefined') ? window.RiskEngine : null;
+    _re = (typeof window !== 'undefined') ? window.RiskEngine : null;
   }
 } else {
-  EmailParser = window.EmailParser;
-  DomainUtils = window.DomainUtils;
-  RiskEngine = window.RiskEngine;
+  EmailParser = typeof window !== 'undefined' ? window.EmailParser : null;
+  DomainUtils = typeof window !== 'undefined' ? window.DomainUtils : null;
+  _re = typeof window !== 'undefined' ? window.RiskEngine : null;
 }
 
 // ─── Finding Builder ──────────────────────────────────────────────────────────
@@ -119,7 +119,7 @@ function analyzeHeaders(rawHeaders) {
   }
 
   function addFinding(finding) {
-    // We add an id and weight so RiskEngine can use it
+    // We add an id and weight so _re can use it
     if (!finding.id) {
       finding.id = `EMAIL_${finding.title.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`;
     }
@@ -617,7 +617,7 @@ function analyzeHeaders(rawHeaders) {
 
   // ── Unified Risk Engine Integration ──────────────────────────────────────────
   let riskResult = {};
-  if (RiskEngine) {
+  if (_re) {
     // Convert findings to indicators
     const indicators = findings.map(f => ({
       id: f.id || `EMAIL_${f.title.replace(/\s+/g, '_').toUpperCase()}`,
@@ -648,10 +648,10 @@ function analyzeHeaders(rawHeaders) {
     // It's safer to just let the risk engine run on the new indicators we construct.
   });
 
-  // Since we are migrating, we will use RiskEngine.analyze if available, 
+  // Since we are migrating, we will use _re.analyze if available, 
   // but we must map the legacy score exactly for the tests.
   let finalRiskResult = null;
-  if (RiskEngine) {
+  if (_re) {
     const rawIndicators = [];
     let currentScoreIndex = 0;
     
@@ -659,7 +659,7 @@ function analyzeHeaders(rawHeaders) {
     // or just pass a single "LEGACY_SCORE" indicator to ensure the score matches Phase 1 tests perfectly,
     // while we transition.
     
-    // Better: let RiskEngine compute it, but we pass the actual points as weight.
+    // Better: let _re compute it, but we pass the actual points as weight.
     // I will modify the addRisk function above to inject the weight into the `findingObj` before it gets pushed.
     
     const mappedIndicators = findings.map(f => ({
@@ -688,7 +688,7 @@ function analyzeHeaders(rawHeaders) {
       });
     }
 
-    finalRiskResult = RiskEngine.analyze({
+    finalRiskResult = _re.analyze({
       module: 'email',
       indicators: mappedIndicators,
       metadata: { fromAddress: fromAddr }
@@ -696,7 +696,7 @@ function analyzeHeaders(rawHeaders) {
   }
 
   return {
-    // Backward-compatible fields (from RiskEngine if available, otherwise legacy)
+    // Backward-compatible fields (from _re if available, otherwise legacy)
     threatLevel: finalRiskResult ? (finalRiskResult.severity.charAt(0) + finalRiskResult.severity.slice(1).toLowerCase()) : threatLevel, 
     score: finalRiskResult ? finalRiskResult.score : finalScore,
     logs,

@@ -3,16 +3,9 @@
  * Analyzes SMS/text messages for spam, phishing (smishing), and cyberbullying/harassment signatures.
  */
 
-let RiskEngine;
-if (typeof require === 'function') {
-  try {
-    RiskEngine = require('../core/riskEngine');
-  } catch (e) {
-    RiskEngine = typeof window !== 'undefined' ? window.RiskEngine : null;
-  }
-} else {
-  RiskEngine = typeof window !== 'undefined' ? window.RiskEngine : null;
-}
+var _re = (typeof require === 'function' && typeof window === 'undefined') 
+  ? require('../core/riskEngine') 
+  : (typeof window !== 'undefined' ? window.RiskEngine : null);
 
 function analyzeSMS(smsText) {
   const logs = [];
@@ -230,8 +223,8 @@ function analyzeSMS(smsText) {
   }
 
   let finalRiskResult = null;
-  if (RiskEngine) {
-    finalRiskResult = RiskEngine.analyze({
+  if (_re) {
+    finalRiskResult = _re.analyze({
       module: 'sms',
       indicators,
       metadata: { textLength: smsText.length }

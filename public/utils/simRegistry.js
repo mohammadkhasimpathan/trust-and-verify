@@ -20,16 +20,9 @@ const STORAGE_KEY_PIN_HASH = 'trust_verify_pin_hash';
 const DEFAULT_HARDWARE_IMEI = '358924091823901';
 const DEFAULT_HARDWARE_ENCLAVE_ID = 'KNOX-SEC-ENCLAVE-994A-FF02';
 
-let RiskEngine;
-if (typeof require === 'function') {
-  try {
-    RiskEngine = require('../core/riskEngine');
-  } catch (e) {
-    RiskEngine = typeof window !== 'undefined' ? window.RiskEngine : null;
-  }
-} else {
-  RiskEngine = typeof window !== 'undefined' ? window.RiskEngine : null;
-}
+var _re = (typeof require === 'function' && typeof window === 'undefined') 
+  ? require('../core/riskEngine') 
+  : (typeof window !== 'undefined' ? window.RiskEngine : null);
 
 // Simulated preset SIM cards
 const SIM_PRESETS = {
@@ -168,7 +161,7 @@ class SIMRegistryEngine {
       logs.push('[WARN] SIM Socket 1 is EMPTY. Cellular radio offline.');
       
       let finalRiskResult = null;
-      if (RiskEngine) {
+      if (_re) {
         indicators.push({
           id: 'SIM_NO_CARD',
           category: 'ATTACHMENT', // Reusing ATTACHMENT conceptually or HARDWARE
@@ -180,7 +173,7 @@ class SIMRegistryEngine {
           recommendation: 'Insert a SIM card to activate network connection.',
           source: 'LOCAL_HEURISTIC'
         });
-        finalRiskResult = RiskEngine.analyze({
+        finalRiskResult = _re.analyze({
           module: 'sim',
           indicators,
           metadata: { hasSim: false }
@@ -239,8 +232,8 @@ class SIMRegistryEngine {
       });
 
       let finalRiskResult = null;
-      if (RiskEngine) {
-        finalRiskResult = RiskEngine.analyze({
+      if (_re) {
+        finalRiskResult = _re.analyze({
           module: 'sim',
           indicators,
           metadata: { hasSim: true, registered: false }
@@ -279,8 +272,8 @@ class SIMRegistryEngine {
       logs.push('[INFO] Baseband ciphering: 5G SA AES-256 GCM verified.');
 
       let finalRiskResult = null;
-      if (RiskEngine) {
-        finalRiskResult = RiskEngine.analyze({
+      if (_re) {
+        finalRiskResult = _re.analyze({
           module: 'sim',
           indicators,
           metadata: { hasSim: true, registered: true, secure: true }
@@ -340,7 +333,7 @@ class SIMRegistryEngine {
       }
 
       let finalRiskResult = null;
-      if (RiskEngine) {
+      if (_re) {
         indicators.push({
           id: 'SIM_SWAP_HIJACK',
           category: 'IDENTITY',
@@ -353,7 +346,7 @@ class SIMRegistryEngine {
           source: 'LOCAL_HEURISTIC'
         });
 
-        finalRiskResult = RiskEngine.analyze({
+        finalRiskResult = _re.analyze({
           module: 'sim',
           indicators,
           metadata: { hasSim: true, registered: true, secure: false }

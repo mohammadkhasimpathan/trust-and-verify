@@ -3,16 +3,9 @@
  * Performs heuristic analysis on file attachments for malware/ransomware signatures.
  */
 
-let RiskEngine;
-if (typeof require === 'function') {
-  try {
-    RiskEngine = require('../core/riskEngine');
-  } catch (e) {
-    RiskEngine = typeof window !== 'undefined' ? window.RiskEngine : null;
-  }
-} else {
-  RiskEngine = typeof window !== 'undefined' ? window.RiskEngine : null;
-}
+var _re = (typeof require === 'function' && typeof window === 'undefined') 
+  ? require('../core/riskEngine') 
+  : (typeof window !== 'undefined' ? window.RiskEngine : null);
 
 // Simulated database of dangerous file hashes (SHA-256)
 const THREAT_HASHES = {
@@ -238,8 +231,8 @@ function analyzeFile(filename, contentBufferOrString, fileHash = '') {
   }
 
   let finalRiskResult = null;
-  if (RiskEngine) {
-    finalRiskResult = RiskEngine.analyze({
+  if (_re) {
+    finalRiskResult = _re.analyze({
       module: 'file',
       indicators,
       metadata: { filename, hash: fileHash }
