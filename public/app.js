@@ -232,13 +232,23 @@ function navigateTo(moduleId) {
   activeModule = moduleId;
   
   // Highlight navigation item
-  const navIds = ['email', 'sms', 'caller', 'interceptor', 'sim'];
+  const navIds = ['email', 'sms', 'caller', 'interceptor', 'sim', 'urlqr', 'domain', 'history'];
   navIds.forEach(id => {
     const navElem = document.getElementById(`nav-${id}`);
     const viewElem = document.getElementById(`view-${id}`);
     if (navElem) navElem.classList.toggle('active', id === moduleId);
-    if (viewElem) viewElem.classList.toggle('active', id === moduleId);
+    
+    // Some views are managed via display inline styles rather than active classes, but active class works if css supports it.
+    // However, historically Trust&Verify uses style.display = 'block' vs 'none'
+    if (viewElem) {
+      viewElem.style.display = id === moduleId ? 'block' : 'none';
+      viewElem.classList.toggle('active', id === moduleId);
+    }
   });
+  
+  if (moduleId === 'history') {
+    if (window.historyUi) window.historyUi.loadHistory();
+  }
   
   addLogLine(`[SYSTEM] Switched console panel to: [${moduleId.toUpperCase()}_MATRIX]`, 'system');
 }
@@ -545,6 +555,18 @@ async function runHeaderAnalysis() {
       }
       if (_threatVerdictSummary) _threatVerdictSummary.textContent = verdict;
       
+      // Save History
+      if (window.historyManager && window.historyStore) {
+        historyManager.createScanRecord('EMAIL_THREAT_SCANNER', 'raw_headers', {
+          score: results.score,
+          severity: results.threatLevel,
+          verdict: verdict,
+          indicators: results.indicators || results.details || results.findings || []
+        }).then(record => historyStore.saveScan(record))
+          .then(() => addLogLine(`[SYSTEM] Scan saved to history.`, 'success'))
+          .catch(e => addLogLine(`[WARN] Could not save history: ${e.message}`, 'warn'));
+      }
+      
       scanBtn.removeAttribute('disabled');
       addLogLine(`[SUCCESS] Email header analysis complete. Threat Score: ${results.score}%`, 'success');
     } else {
@@ -661,6 +683,22 @@ async function runEmlScan() {
     // Phase 1 EML UI Rendering
     if (typeof populateEmlResults === 'function') {
       populateEmlResults(results);
+    }
+    
+    // History
+    if (window.historyManager && window.historyStore) {
+      try {
+        const record = await historyManager.createScanRecord('EMAIL_THREAT_SCANNER', selectedEml.name || 'eml_file', {
+          score: results.score,
+          severity: results.threatLevel,
+          verdict: verdict,
+          indicators: allFindings
+        });
+        await historyStore.saveScan(record);
+        addLogLine(`[SYSTEM] Scan saved to history.`, 'success');
+      } catch(e) {
+        addLogLine(`[WARN] Could not save history: ${e.message}`, 'warn');
+      }
     }
     
     addLogLine(`[SUCCESS] EML backend scan complete. Threat Score: ${results.score || 0}%`, 'success');
@@ -873,7 +911,7 @@ async function runFileScan() {
   scanBtn.setAttribute('disabled', 'true');
   addLogLine(`[SYSTEM] Initializing binary attachment scanner...`, 'system');
 
-  const processResults = (results) => {
+  const processResults = async (results) => {
     results.logs.forEach(log => {
       let type = 'success';
       if (log.includes('[CRITICAL]')) type = 'critical';
@@ -881,8 +919,40 @@ async function runFileScan() {
       addLogLine(log, type);
     });
 
-    updateThreatGauge(results.score, results.threatLevel);
-    populateFindings(results.indicators || results.details);
+    let combinedIndicators = results.indicators || results.details || [];
+    
+    // Save Initial Local History
+    let scanId = null;
+    if (window.historyManager && window.historyStore) {
+      try {
+        const record = await historyManager.createScanRecord('FILE_ATTACHMENTS', results.filename || 'unknown_file', results);
+        scanId = await historyStore.saveScan(record);
+      } catch(e) {}
+    }
+
+    const useTi = document.getElementById('file-ti-toggle')?.checked;
+    if (useTi && results.hash) {
+      const tiIndicators = await executeThreatIntel(results.hash, 'HASH');
+      if (tiIndicators && tiIndicators.length > 0) {
+        combinedIndicators = [...combinedIndicators, ...tiIndicators];
+        results.score = Math.min(100, results.score + (tiIndicators.length * 20));
+        results.indicators = combinedIndicators;
+        
+        if (scanId && window.historyStore && window.lastTiResult) {
+          try {
+            await historyStore.updateScan(scanId, {
+               result: results,
+               threatIntelligence: window.lastTiResult
+            });
+          } catch(e) {}
+        }
+      }
+    } else {
+      document.getElementById('threat-intel-results').style.display = 'none';
+    }
+
+    updateThreatGauge(results.score, results.threatLevel || (results.score > 75 ? 'Critical' : 'Low'));
+    populateFindings(combinedIndicators);
 
     let verdict = 'File scanning complete. Binary structure matches safe signatures.';
     if (results.score >= 80) {
@@ -978,6 +1048,18 @@ function runSMSAnalysis() {
       }
       if (_threatVerdictSummary) _threatVerdictSummary.textContent = verdict;
 
+      // Save History
+      if (window.historyManager && window.historyStore) {
+        historyManager.createScanRecord('SMS_SHIELD', text, {
+          score: results.score,
+          severity: results.threatLevel,
+          verdict: verdict,
+          indicators: results.indicators || results.details || []
+        }).then(record => historyStore.saveScan(record))
+          .then(() => addLogLine(`[SYSTEM] Scan saved to history.`, 'success'))
+          .catch(e => addLogLine(`[WARN] Could not save history: ${e.message}`, 'warn'));
+      }
+
       scanBtn.removeAttribute('disabled');
       addLogLine(`[SUCCESS] SMS check complete. Rating: ${results.threatLevel}`, 'success');
     } else {
@@ -1054,6 +1136,18 @@ function runPhoneScan() {
         document.getElementById('caller-profile-desc').textContent = profile.description;
         
         document.getElementById('caller-profile-card').style.display = 'flex';
+      }
+
+      // Save History
+      if (window.historyManager && window.historyStore) {
+        historyManager.createScanRecord('PHONE_SCANNER', number, {
+          score: results.score,
+          severity: results.threatLevel,
+          verdict: verdict,
+          indicators: results.indicators || results.details || []
+        }).then(record => historyStore.saveScan(record))
+          .then(() => addLogLine(`[SYSTEM] Scan saved to history.`, 'success'))
+          .catch(e => addLogLine(`[WARN] Could not save history: ${e.message}`, 'warn'));
       }
 
       scanBtn.removeAttribute('disabled');
@@ -1404,6 +1498,23 @@ function runSIMSecurityAudit() {
   setTimeout(() => {
     const evalResult = window.simRegistryEngine.evaluateSIMSecurity();
     applySIMEvaluation(evalResult, true);
+    
+    // History Save
+    if (window.historyManager && window.historyStore) {
+      const targetDisplay = evalResult.currentSIM ? evalResult.currentSIM.iccid : 'NO_SIM';
+      let verdict = 'SIM check complete';
+      if (_threatVerdictSummary) verdict = _threatVerdictSummary.textContent;
+      
+      historyManager.createScanRecord('SIM_SHIELD', targetDisplay, {
+        score: evalResult.threatScore,
+        severity: evalResult.threatLevel,
+        verdict: verdict,
+        indicators: evalResult.indicators || evalResult.details || []
+      }).then(record => historyStore.saveScan(record))
+        .then(() => addLogLine(`[SYSTEM] Scan saved to history.`, 'success'))
+        .catch(e => addLogLine(`[WARN] Could not save history: ${e.message}`, 'warn'));
+    }
+
     if (auditBtn) auditBtn.removeAttribute('disabled');
     addLogLine(`[SUCCESS] Baseband audit complete. Threat Score: ${evalResult.threatScore}%`, evalResult.threatScore > 50 ? 'critical' : 'success');
   }, 700);
@@ -1568,4 +1679,395 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Start sequence
   setTimeout(runBootSequence, 200);
-});
+}
+
+// ============================================================================
+// PHASE 3: URL, QR, Domain & SSL Analyzers
+// ============================================================================
+
+function switchUrlQrTab(tabId) {
+  document.getElementById('btn-tab-url').classList.toggle('active', tabId === 'url');
+  document.getElementById('btn-tab-qr').classList.toggle('active', tabId === 'qr');
+  document.getElementById('urlqr-tab-url').style.display = tabId === 'url' ? 'block' : 'none';
+  document.getElementById('urlqr-tab-qr').style.display = tabId === 'qr' ? 'block' : 'none';
+}
+
+async function executeThreatIntel(target, type) {
+  const container = document.getElementById('threat-intel-results');
+  const grid = document.getElementById('ti-providers-grid');
+  
+  if (!container || !grid) return null;
+  
+  container.style.display = 'block';
+  grid.innerHTML = '<div style="color: #aaa;">Checking external threat intelligence...</div>';
+  addLogLine(`[INFO] Querying Threat Intelligence for ${type}: ${target}`, 'system');
+  
+  try {
+    const res = await fetch(`/api/threat-intel/${type.toLowerCase()}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ target })
+    });
+    
+    if (!res.ok) {
+      grid.innerHTML = `<div style="color: #ff5555;">Threat Intelligence unavailable (${res.status})</div>`;
+      return null;
+    }
+    
+    const data = await res.json();
+    
+    grid.innerHTML = '';
+    const newIndicators = [];
+    
+    if (data.results && data.results.length > 0) {
+      data.results.forEach(r => {
+        let statusColor = '#aaa';
+        if (r.status === 'FOUND') statusColor = '#ff5555';
+        else if (r.status === 'NO_MATCH') statusColor = '#55ff55';
+        
+        let details = '';
+        if (r.reputation) {
+          details = `<br><span style="font-size:10px">Malicious: ${r.reputation.malicious}, Suspicious: ${r.reputation.suspicious}</span>`;
+          if (r.reputation.malicious > 0 || r.reputation.suspicious > 0) {
+            newIndicators.push({
+              id: `TI_${r.provider.toUpperCase().replace(/\s/g, '_')}_MALICIOUS`,
+              category: 'THREAT_INTELLIGENCE',
+              severity: r.reputation.malicious > 0 ? 'HIGH' : 'MEDIUM',
+              title: `${r.provider} Malicious Detection`,
+              description: `Target was flagged by ${r.provider}.`,
+              evidence: `Malicious: ${r.reputation.malicious}, Suspicious: ${r.reputation.suspicious}`,
+              recommendation: 'Block this target immediately.'
+            });
+          }
+        }
+        if (r.detections) {
+          details = `<br><span style="font-size:10px">${r.detections.length} threat matches</span>`;
+          if (r.detections.length > 0) {
+            newIndicators.push({
+              id: `TI_${r.provider.toUpperCase().replace(/\s/g, '_')}_MATCH`,
+              category: 'THREAT_INTELLIGENCE',
+              severity: 'HIGH',
+              title: `${r.provider} Threat Match`,
+              description: `Target matched in ${r.provider} database.`,
+              evidence: `${r.detections.length} matches found.`,
+              recommendation: 'Block this target.'
+            });
+          }
+        }
+        if (r.metadata && r.metadata.in_database) {
+            newIndicators.push({
+              id: `TI_${r.provider.toUpperCase().replace(/\s/g, '_')}_MATCH`,
+              category: 'THREAT_INTELLIGENCE',
+              severity: 'HIGH',
+              title: `${r.provider} Phishing Match`,
+              description: `Target matched in ${r.provider} database.`,
+              evidence: `Found in database.`,
+              recommendation: 'Block this target.'
+            });
+        }
+        
+        grid.innerHTML += `
+          <div class="eml-data-row">
+            <span class="eml-data-label">${r.provider.toUpperCase()}</span>
+            <span class="eml-data-value" style="color: ${statusColor};">${r.status}${details}</span>
+          </div>
+        `;
+      });
+    } else {
+      grid.innerHTML = '<div style="color: #aaa;">No threat intelligence data available.</div>';
+    }
+    
+    return newIndicators;
+  } catch (err) {
+    grid.innerHTML = `<div style="color: #ff5555;">Threat Intelligence request failed: ${err.message}</div>`;
+    return null;
+  }
+}
+
+async function runUrlScan() {
+  const urlInput = document.getElementById('url-input').value;
+  if (!urlInput.trim()) {
+    addLogLine('[ERROR] Target URL is empty', 'error');
+    return;
+  }
+  
+  if (typeof UrlAnalyzer === 'undefined') {
+    addLogLine('[ERROR] URL Analyzer module not loaded', 'error');
+    return;
+  }
+
+  addLogLine(`[INFO] Analyzing URL: ${urlInput}`, 'system');
+  const result = UrlAnalyzer.analyze(urlInput);
+  
+  // Format for Risk Engine
+  const riskResult = RiskEngine.analyze({
+    module: 'url',
+    indicators: result.indicators,
+    metadata: {
+      normalizedUrl: result.normalizedUrl,
+      nestedUrl: result.nestedUrl
+    }
+  });
+
+  updateThreatGauge(riskResult.score, riskResult.severity, riskResult.verdict, riskResult.summary);
+  renderRiskFindings(riskResult.indicators);
+
+  document.getElementById('url-breakdown').style.display = 'block';
+  document.getElementById('url-parts-grid').innerHTML = `
+    <div class="eml-data-row"><span class="eml-data-label">PROTOCOL</span><span class="eml-data-value">${result.parsed?.protocol || '-'}</span></div>
+    <div class="eml-data-row"><span class="eml-data-label">HOSTNAME</span><span class="eml-data-value">${result.parsed?.hostname || '-'}</span></div>
+    <div class="eml-data-row"><span class="eml-data-label">PATH</span><span class="eml-data-value">${result.parsed?.pathname || '-'}</span></div>
+    <div class="eml-data-row"><span class="eml-data-label">QUERY</span><span class="eml-data-value">${result.parsed?.search || '-'}</span></div>
+  `;
+
+  let scanId = null;
+  if (window.historyManager && window.historyStore) {
+    try {
+      const record = await historyManager.createScanRecord('URL_SECURITY', urlInput, riskResult);
+      scanId = await historyStore.saveScan(record);
+      addLogLine(`[SYSTEM] Scan saved to history.`, 'success');
+    } catch(e) {
+      addLogLine(`[WARN] Could not save history: ${e.message}`, 'warn');
+    }
+  }
+
+  // External Threat Intelligence
+  const useTi = document.getElementById('url-ti-toggle')?.checked;
+  if (useTi) {
+    const tiIndicators = await executeThreatIntel(urlInput, 'URL');
+    
+    let finalResult = riskResult;
+    
+    if (tiIndicators && tiIndicators.length > 0) {
+      const combinedIndicators = [...result.indicators, ...tiIndicators];
+      finalResult = RiskEngine.analyze({
+        module: 'url',
+        indicators: combinedIndicators,
+        metadata: { normalizedUrl: result.normalizedUrl, nestedUrl: result.nestedUrl }
+      });
+      updateThreatGauge(finalResult.score, finalResult.severity, finalResult.verdict, finalResult.summary);
+      renderRiskFindings(finalResult.indicators);
+    }
+    
+    if (scanId && window.historyStore && window.lastTiResult) {
+      try {
+        await historyStore.updateScan(scanId, { 
+           result: finalResult, 
+           threatIntelligence: window.lastTiResult 
+        });
+      } catch(e) {}
+    }
+  } else {
+    document.getElementById('threat-intel-results').style.display = 'none';
+  }
+}
+
+let selectedQrImage = null;
+function handleQrSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  selectedQrImage = file;
+  
+  document.getElementById('qr-dropzone').style.display = 'none';
+  document.getElementById('qr-info-card').style.display = 'flex';
+  document.getElementById('selected-qr-name').innerText = file.name;
+  document.getElementById('selected-qr-size').innerText = `${Math.round(file.size / 1024)} KB`;
+  document.getElementById('btn-run-qr').disabled = false;
+}
+
+function clearSelectedQr() {
+  selectedQrImage = null;
+  document.getElementById('qr-input').value = '';
+  document.getElementById('qr-dropzone').style.display = 'flex';
+  document.getElementById('qr-info-card').style.display = 'none';
+  document.getElementById('btn-run-qr').disabled = true;
+  document.getElementById('qr-results').style.display = 'none';
+}
+
+function runQrScan() {
+  if (!selectedQrImage) return;
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      
+      try {
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        if (code) {
+          addLogLine(`[INFO] QR Code decoded. Payload: ${code.data}`, 'system');
+          processQrPayload(code.data);
+        } else {
+          addLogLine('[ERROR] No QR code found in the image', 'error');
+        }
+      } catch (err) {
+        addLogLine(`[ERROR] QR Decoding failed: ${err.message}`, 'error');
+      }
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(selectedQrImage);
+}
+
+function processQrPayload(decodedText) {
+  if (typeof QrAnalyzer === 'undefined') {
+    addLogLine('[ERROR] QR Analyzer module not loaded', 'error');
+    return;
+  }
+  
+  const result = QrAnalyzer.analyze(decodedText);
+  
+  document.getElementById('qr-results').style.display = 'block';
+  document.getElementById('qr-type-val').innerText = result.type;
+  document.getElementById('qr-payload-val').innerText = result.rawText;
+
+  let riskResult;
+  if (result.type === 'URL' && typeof UrlAnalyzer !== 'undefined') {
+    const urlResult = UrlAnalyzer.analyze(result.urlPayload);
+    // Merge indicators
+    const combinedIndicators = [...result.indicators, ...urlResult.indicators];
+    riskResult = RiskEngine.analyze({
+      module: 'qr',
+      indicators: combinedIndicators
+    });
+  } else {
+    riskResult = RiskEngine.analyze({
+      module: 'qr',
+      indicators: result.indicators
+    });
+  }
+
+  updateThreatGauge(riskResult.score, riskResult.severity, riskResult.verdict, riskResult.summary);
+  renderRiskFindings(riskResult.indicators);
+}
+
+function runDomainScan() {
+  runDomainScanAsync().catch(err => console.error(err));
+}
+
+async function runDomainScanAsync() {
+  const domainInput = document.getElementById('domain-input').value.trim();
+  if (!domainInput) {
+    addLogLine('[ERROR] Target Domain is empty', 'error');
+    return;
+  }
+  
+  if (typeof DomainAnalyzer === 'undefined') {
+    addLogLine('[ERROR] Domain Analyzer module not loaded', 'error');
+    return;
+  }
+
+  addLogLine(`[INFO] Analyzing Domain: ${domainInput}`, 'system');
+  const result = DomainAnalyzer.analyze(domainInput);
+  
+  let riskResult = RiskEngine.analyze({
+    module: 'domain',
+    indicators: result.indicators,
+    metadata: {
+      registrableDomain: result.registrableDomain
+    }
+  });
+
+  updateThreatGauge(riskResult.score, riskResult.severity, riskResult.verdict, riskResult.summary);
+  renderRiskFindings(riskResult.indicators);
+
+  let scanId = null;
+  if (window.historyManager && window.historyStore) {
+    try {
+      const record = await historyManager.createScanRecord('DOMAIN_INSPECTOR', domainInput, riskResult);
+      scanId = await historyStore.saveScan(record);
+      addLogLine(`[SYSTEM] Scan saved to history.`, 'success');
+    } catch(e) {
+      addLogLine(`[WARN] Could not save history: ${e.message}`, 'warn');
+    }
+  }
+
+  // External Threat Intelligence
+  const useTi = document.getElementById('domain-ti-toggle')?.checked;
+  if (useTi) {
+    const tiIndicators = await executeThreatIntel(domainInput, 'DOMAIN');
+    let finalResult = riskResult;
+    
+    if (tiIndicators && tiIndicators.length > 0) {
+      const combinedIndicators = [...result.indicators, ...tiIndicators];
+      finalResult = RiskEngine.analyze({
+        module: 'domain',
+        indicators: combinedIndicators,
+        metadata: { registrableDomain: result.registrableDomain }
+      });
+      updateThreatGauge(finalResult.score, finalResult.severity, finalResult.verdict, finalResult.summary);
+      renderRiskFindings(finalResult.indicators);
+    }
+    
+    if (scanId && window.historyStore && window.lastTiResult) {
+      try {
+        await historyStore.updateScan(scanId, { 
+           result: finalResult, 
+           threatIntelligence: window.lastTiResult 
+        });
+      } catch(e) {}
+    }
+  } else {
+    document.getElementById('threat-intel-results').style.display = 'none';
+  }
+}
+
+async function runSslScan() {
+  const domainInput = document.getElementById('domain-input').value.trim();
+  if (!domainInput) {
+    addLogLine('[ERROR] Target Domain is empty', 'error');
+    return;
+  }
+  
+  if (typeof SslAnalyzer === 'undefined') {
+    addLogLine('[ERROR] SSL Analyzer module not loaded', 'error');
+    return;
+  }
+
+  addLogLine(`[INFO] Requesting TLS inspection for: ${domainInput}`, 'system');
+  
+  // Set UI state to scanning
+  document.getElementById('ssl-results').style.display = 'block';
+  document.getElementById('ssl-details-grid').innerHTML = 'Inspecting... Please wait up to 5s.';
+
+  try {
+    const result = await SslAnalyzer.inspect(domainInput);
+    const riskResult = RiskEngine.analyze({
+      module: 'ssl',
+      indicators: result.indicators
+    });
+
+    updateThreatGauge(riskResult.score, riskResult.severity, riskResult.verdict, riskResult.summary);
+    renderRiskFindings(riskResult.indicators);
+
+    if (result.sslData) {
+      document.getElementById('ssl-details-grid').innerHTML = `
+        <div class="eml-data-row"><span class="eml-data-label">ISSUER</span><span class="eml-data-value">${result.sslData.certificate?.issuer?.CN || '-'}</span></div>
+        <div class="eml-data-row"><span class="eml-data-label">SUBJECT</span><span class="eml-data-value">${result.sslData.certificate?.subject?.CN || '-'}</span></div>
+        <div class="eml-data-row"><span class="eml-data-label">PROTOCOL</span><span class="eml-data-value">${result.sslData.protocol || '-'}</span></div>
+        <div class="eml-data-row"><span class="eml-data-label">EXPIRES IN</span><span class="eml-data-value">${Math.floor(result.sslData.daysUntilExpiry)} days</span></div>
+      `;
+    } else {
+      document.getElementById('ssl-details-grid').innerHTML = 'Failed to retrieve SSL details.';
+    }
+
+    if (window.historyManager && window.historyStore) {
+      try {
+        const record = await historyManager.createScanRecord('SSL_INSPECTOR', domainInput, riskResult);
+        await historyStore.saveScan(record);
+        addLogLine(`[SYSTEM] Scan saved to history.`, 'success');
+      } catch(e) {
+        addLogLine(`[WARN] Could not save history: ${e.message}`, 'warn');
+      }
+    }
+  } catch (err) {
+    addLogLine(`[ERROR] SSL Scan failed: ${err.message}`, 'error');
+    document.getElementById('ssl-details-grid').innerHTML = err.message;
+  }
+}

@@ -252,5 +252,5 @@ The Email Threat Scanner analyzes `.eml` files and raw headers to simulate email
 |---|---|---|
 | Phase 0 | ✅ Complete | Security hardening, stability, testing, documentation |
 | Phase 1 | ✅ Complete | Email Threat Scanner v2 (Heuristic EML analysis, Safe Links, IDN detection, structural findings) |
-| Phase 2 | 🔜 Planned | URL scanner, QR scanner, VirusTotal integration |
-| Phase 3 | 🔜 Planned | Serverless backend migration, user accounts |
+| Phase 2 | ✅ Complete | Unified Risk Engine (Centralized scoring and heuristics) |
+| Phase 3 | ✅ Complete | URL, QR, Domain & SSL Analysis (Heuristic indicators, SSRF safe backend, jsQR local decoding) |

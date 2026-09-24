@@ -302,6 +302,130 @@ app.post('/api/scan-eml', upload.single('emlFile'), async (req, res, next) => {
   }
 });
 
+// ─── API: SSL Inspection ───────────────────────────────────────────────────
+/**
+ * POST /api/inspect-ssl
+ * Body: { hostname: "example.com", port: 443 }
+ */
+const tls = require('tls');
+const dns = require('dns');
+const { promisify } = require('util');
+const resolve4 = promisify(dns.resolve4);
+
+function isPrivateIP(ip) {
+  const parts = ip.split('.').map(Number);
+  if (parts.length !== 4) return true; // Block non-IPv4 for simplicity here
+  
+  if (parts[0] === 10) return true;
+  if (parts[0] === 127) return true;
+  if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+  if (parts[0] === 192 && parts[1] === 168) return true;
+  if (parts[0] === 169 && parts[1] === 254) return true;
+  if (parts[0] === 0) return true;
+  
+  return false;
+}
+
+app.post('/api/inspect-ssl', async (req, res, next) => {
+  try {
+    let { hostname, port } = req.body;
+    port = port || 443;
+
+    if (!hostname || typeof hostname !== 'string') {
+      return res.status(400).json({ error: 'Hostname is required.' });
+    }
+    
+    // Validate hostname format loosely to prevent injection
+    if (!/^[a-zA-Z0-9.-]+$/.test(hostname)) {
+      return res.status(400).json({ error: 'Invalid hostname characters.' });
+    }
+
+    if (hostname.toLowerCase() === 'localhost' || hostname.toLowerCase().includes('localdomain')) {
+      return res.status(403).json({ error: 'Localhost inspection is prohibited (SSRF protection).' });
+    }
+
+    // SSRF DNS Resolution
+    let ips;
+    try {
+      ips = await resolve4(hostname);
+    } catch (e) {
+      return res.status(400).json({ error: 'DNS resolution failed. Hostname may not exist.' });
+    }
+
+    if (!ips || ips.length === 0) {
+      return res.status(400).json({ error: 'No IPv4 addresses found for hostname.' });
+    }
+
+    const targetIp = ips[0];
+    if (isPrivateIP(targetIp)) {
+      return res.status(403).json({ error: 'Target resolves to a private/reserved IP (SSRF protection).' });
+    }
+
+    // Attempt TLS Connection
+    const options = {
+      host: targetIp,
+      servername: hostname, // SNI
+      port: port,
+      rejectUnauthorized: false, // We want to inspect bad certs too
+      timeout: 5000 // 5 seconds
+    };
+
+    const socket = tls.connect(options, () => {
+      const cert = socket.getPeerCertificate(true); // detailed
+      const protocol = socket.getProtocol();
+      const cipher = socket.getCipher();
+      const authorized = socket.authorized;
+      const authorizationError = socket.authorizationError;
+
+      // Hostname verification
+      const hostnameMatched = tls.checkServerIdentity(hostname, cert) === undefined;
+
+      // Expiry calculation
+      let daysUntilExpiry = 0;
+      if (cert.valid_to) {
+        const toDate = new Date(cert.valid_to);
+        const now = new Date();
+        daysUntilExpiry = (toDate - now) / (1000 * 60 * 60 * 24);
+      }
+
+      const result = {
+        hostname,
+        targetIp,
+        protocol,
+        cipher,
+        authorized,
+        authorizationError,
+        hostnameMatched,
+        daysUntilExpiry,
+        certificate: {
+          subject: cert.subject,
+          issuer: cert.issuer,
+          valid_from: cert.valid_from,
+          valid_to: cert.valid_to,
+          fingerprint256: cert.fingerprint256,
+          serialNumber: cert.serialNumber
+        }
+      };
+
+      socket.end();
+      res.json(result);
+    });
+
+    socket.on('timeout', () => {
+      socket.destroy();
+      res.status(504).json({ error: 'TLS connection timed out.' });
+    });
+
+    socket.on('error', (err) => {
+      socket.destroy();
+      res.status(502).json({ error: `TLS connection error: ${err.message}` });
+    });
+
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ─── Multer Error Handler ──────────────────────────────────────────────────
 // Catches file-size-limit and other Multer-specific errors before they reach
 // the generic error handler.
@@ -313,6 +437,10 @@ app.use((err, req, res, next) => {
   }
   next(err);
 });
+
+// ─── Phase 4: Threat Intelligence ──────────────────────────────────────────
+const threatIntelRouter = require('./server/threatIntel/index');
+app.use('/api/threat-intel', threatIntelRouter);
 
 // ─── Centralized Error Handler ─────────────────────────────────────────────
 // Catches all errors thrown by route handlers. Stack traces are only logged
@@ -331,11 +459,15 @@ app.use((err, req, res, next) => {
 });
 
 // ─── Start Server ──────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log('==================================================');
-  console.log(`  Trust & Verify Security Engine`);
-  console.log(`  Environment : ${IS_PRODUCTION ? 'PRODUCTION' : 'DEVELOPMENT'}`);
-  console.log(`  Port        : ${PORT}`);
-  console.log(`  Dashboard   : http://localhost:${PORT}`);
-  console.log('==================================================');
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log('==================================================');
+    console.log(`  Trust & Verify Security Engine`);
+    console.log(`  Environment : ${IS_PRODUCTION ? 'PRODUCTION' : 'DEVELOPMENT'}`);
+    console.log(`  Port        : ${PORT}`);
+    console.log(`  Dashboard   : http://localhost:${PORT}`);
+    console.log('==================================================');
+  });
+}
+
+module.exports = app;

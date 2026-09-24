@@ -88,6 +88,18 @@
           <span class="nav-icon">📟</span>
           <span class="nav-label">SIM & Device Shield</span>
         </button>
+        <button class="nav-item" id="nav-urlqr" onclick="navigateTo('urlqr')">
+          <span class="nav-icon">🔗</span>
+          <span class="nav-label">URL & QR Scanner</span>
+        </button>
+        <button class="nav-item" id="nav-domain" onclick="navigateTo('domain')">
+          <span class="nav-icon">🌍</span>
+          <span class="nav-label">Domain & SSL Inspector</span>
+        </button>
+        <button class="nav-item" id="nav-history" onclick="navigateTo('history')">
+          <span class="nav-icon">🗄️</span>
+          <span class="nav-label">Scan History</span>
+        </button>
       </nav>
 
       <!-- App Install / Sound Controls Footer -->
@@ -284,6 +296,14 @@
                   <button type="button" class="preset-btn danger" onclick="simulateFile('downloader.vbs', '', 'WScript.Shell ShellExecute cmd.exe')">Script Downloader</button>
                   <button type="button" class="preset-btn success" onclick="simulateFile('report.pdf', 'safe_hash_123', 'Clean document contents')">Safe PDF File</button>
                 </div>
+              </div>
+
+              <div class="input-group" style="display: flex; align-items: center; margin-bottom: 15px; border: 1px solid #333; padding: 10px; background: rgba(0,0,0,0.2);">
+                <input type="checkbox" id="file-ti-toggle" style="margin-right: 10px;">
+                <label for="file-ti-toggle" style="margin: 0; font-size: 11px; cursor: pointer;">
+                  <strong>External Threat Intelligence (Hash Lookup Only)</strong><br>
+                  <span style="color: #aaa;">Only the SHA-256 hash will be queried. Files are NEVER uploaded.</span>
+                </label>
               </div>
 
               <button type="button" class="action-btn" id="btn-run-files" onclick="runFileScan()" disabled>
@@ -550,6 +570,182 @@
             </div>
           </div>
 
+          </div>
+
+          <!-- MODULE 6: URL & QR Scanner -->
+          <div class="module-view" id="view-urlqr" style="display: none;">
+            <div class="panel-header">
+              <h2><span>[01]</span> URL & QR SCANNER</h2>
+              <div class="cyber-scanner-line"></div>
+            </div>
+            
+            <div class="panel-body">
+              <p class="module-description">Analyze URLs and decode QR codes safely. External navigation and payload execution is strictly blocked.</p>
+              
+              <div class="tab-buttons">
+                <button class="tab-btn active" id="btn-tab-url" onclick="switchUrlQrTab('url')">URL Scanner</button>
+                <button class="tab-btn" id="btn-tab-qr" onclick="switchUrlQrTab('qr')">QR Decoder</button>
+              </div>
+
+              <!-- URL Scanner Sub-tab -->
+              <div class="email-tab-content" id="urlqr-tab-url" style="display: block;">
+                <div class="input-group">
+                  <label for="url-input">TARGET URL</label>
+                  <textarea id="url-input" class="cyber-input" rows="3" placeholder="https://example.com/..."></textarea>
+                </div>
+                
+                <div class="input-group" style="display: flex; align-items: center; margin-bottom: 15px; border: 1px solid #333; padding: 10px; background: rgba(0,0,0,0.2);">
+                  <input type="checkbox" id="url-ti-toggle" style="margin-right: 10px;">
+                  <label for="url-ti-toggle" style="margin: 0; font-size: 11px; cursor: pointer;">
+                    <strong>External Threat Intelligence</strong><br>
+                    <span style="color: #aaa;">The target may be submitted to configured security providers. Review provider terms before enabling.</span>
+                  </label>
+                </div>
+                
+                <button type="button" class="action-btn" id="btn-run-url" onclick="runUrlScan()">
+                  <span>ANALYZE URL HEURISTICS</span>
+                </button>
+                
+                <div id="url-breakdown" class="eml-results-container" style="display: none; margin-top: 20px;">
+                  <h4 style="margin: 0 0 10px 0; color: #fff;">URL BREAKDOWN</h4>
+                  <div class="eml-grid" id="url-parts-grid">
+                    <!-- Populated via JS -->
+                  </div>
+                  <div style="margin-top: 15px; font-size: 11px; color: #aaa;">⚠️ External intelligence (e.g. Google Safe Browsing) NOT CHECKED. Local heuristic analysis only.</div>
+                </div>
+              </div>
+
+              <!-- QR Scanner Sub-tab -->
+              <div class="email-tab-content" id="urlqr-tab-qr" style="display: none;">
+                <div class="dropzone" id="qr-dropzone">
+                  <input type="file" id="qr-input" accept="image/*" onchange="handleQrSelect(event)" style="display: none;">
+                  <div class="dropzone-content" onclick="document.getElementById('qr-input').click()">
+                    <div class="dropzone-icon">📷</div>
+                    <div class="dropzone-text">
+                      <span class="highlight">Click to browse</span> or drag QR image here
+                    </div>
+                  </div>
+                </div>
+                <div class="selected-file-card" id="qr-info-card" style="display: none;">
+                  <div class="file-details">
+                    <span class="file-icon">📷</span>
+                    <div class="file-meta">
+                      <span class="file-name" id="selected-qr-name">qr.png</span>
+                      <span class="file-size" id="selected-qr-size">...</span>
+                    </div>
+                  </div>
+                  <button class="remove-file-btn" onclick="clearSelectedQr()">✕</button>
+                </div>
+                <button type="button" class="action-btn" id="btn-run-qr" onclick="runQrScan()" disabled>
+                  <span>DECODE & ANALYZE QR PAYLOAD</span>
+                </button>
+                
+                <div id="qr-results" class="eml-results-container" style="display: none; margin-top: 20px;">
+                  <h4 style="margin: 0 0 10px 0; color: #fff;">QR CONTENT</h4>
+                  <div class="eml-grid">
+                    <div class="eml-data-row">
+                      <span class="eml-data-label">DETECTED TYPE</span>
+                      <span class="eml-data-value" id="qr-type-val">-</span>
+                    </div>
+                    <div class="eml-data-row" style="grid-column: span 2;">
+                      <span class="eml-data-label">DECODED PAYLOAD</span>
+                      <span class="eml-data-value" id="qr-payload-val" style="white-space: pre-wrap; font-family: monospace;">-</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- MODULE 7: Domain & SSL Inspector -->
+          <div class="module-view" id="view-domain" style="display: none;">
+            <div class="panel-header">
+              <h2><span>[01]</span> DOMAIN & SSL INSPECTOR</h2>
+              <div class="cyber-scanner-line"></div>
+            </div>
+            
+            <div class="panel-body">
+              <p class="module-description">Analyze domain structures (IDN, Impersonation) and inspect live TLS/SSL configurations via a safe backend proxy.</p>
+              
+              <div class="input-group">
+                <label for="domain-input">TARGET DOMAIN OR HOSTNAME</label>
+                <input type="text" id="domain-input" class="cyber-input" placeholder="e.g. secure.login.example.com">
+              </div>
+              
+              <div class="sim-action-buttons" style="margin-top: 15px;">
+                <button type="button" class="action-btn" id="btn-run-domain" onclick="runDomainScan()">
+                  <span>INSPECT DOMAIN</span>
+                </button>
+                <button type="button" class="action-btn secondary-action" id="btn-run-ssl" onclick="runSslScan()">
+                  <span>INSPECT SSL/TLS</span>
+                </button>
+              </div>
+              
+              <div id="ssl-results" class="eml-results-container" style="display: none; margin-top: 20px;">
+                <h4 style="margin: 0 0 10px 0; color: #fff;">SSL/TLS INSPECTION DETAILS</h4>
+                <div class="eml-grid" id="ssl-details-grid">
+                  <!-- Populated via JS -->
+                </div>
+                <div style="margin-top: 15px; font-size: 11px; color: #aaa;">DNS / WHOIS: NOT CHECKED. SSRF protections are active on port 443 inspection.</div>
+              </div>
+            </div>
+          </div>
+          <!-- HISTORY VIEW -->
+          <div class="module-view" id="view-history" style="display: none;">
+            <div class="panel-header">
+              <h2><span>[08]</span> SCAN HISTORY</h2>
+              <div class="cyber-scanner-line"></div>
+            </div>
+            <div class="panel-body">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h3 style="margin: 0; font-size: 14px; color: #fff;">COMPLETED SCANS</h3>
+                <div>
+                  <button type="button" class="action-btn secondary-action" style="padding: 4px 10px; font-size: 11px;" onclick="historyUi.clearHistory()">CLEAR ALL</button>
+                </div>
+              </div>
+              
+              <div class="history-controls" style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                <input type="text" id="history-search" class="cyber-input" placeholder="Search target or module..." style="flex: 1; min-width: 200px;" oninput="historyUi.debouncedLoad()">
+                <select id="history-filter-module" class="cyber-input" style="width: auto;" onchange="historyUi.loadHistory()">
+                  <option value="All">All Modules</option>
+                  <option value="EMAIL_THREAT_SCANNER">Email</option>
+                  <option value="SMS_SHIELD">SMS</option>
+                  <option value="PHONE_SCANNER">Phone</option>
+                  <option value="AI_CALL_INTERCEPTOR">AI Call</option>
+                  <option value="SIM_SHIELD">SIM</option>
+                  <option value="URL_SECURITY">URL</option>
+                  <option value="QR_SECURITY">QR</option>
+                  <option value="DOMAIN_INSPECTOR">Domain</option>
+                  <option value="SSL_INSPECTOR">SSL</option>
+                  <option value="FILE_ATTACHMENTS">File</option>
+                </select>
+                <select id="history-filter-severity" class="cyber-input" style="width: auto;" onchange="historyUi.loadHistory()">
+                  <option value="All">All Severities</option>
+                  <option value="CRITICAL">Critical</option>
+                  <option value="HIGH">High</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="LOW">Low</option>
+                  <option value="SAFE">Safe</option>
+                </select>
+              </div>
+              
+              <div id="history-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 500px; overflow-y: auto;">
+                <div class="empty-findings-state">Loading history...</div>
+              </div>
+              
+              <div style="margin-top: 15px; display: flex; justify-content: center; gap: 10px;">
+                 <button type="button" class="action-btn secondary-action" id="history-prev-btn" style="padding: 4px 10px; font-size: 11px;" onclick="historyUi.prevPage()" disabled>PREV</button>
+                 <span id="history-page-info" style="font-size: 11px; align-self: center; color: #00f0ff;">Page 1</span>
+                 <button type="button" class="action-btn secondary-action" id="history-next-btn" style="padding: 4px 10px; font-size: 11px;" onclick="historyUi.nextPage()" disabled>NEXT</button>
+              </div>
+              
+              <div style="margin-top: 25px; font-size: 11px; color: #aaa; text-align: center;">
+                Scan history is stored locally in this browser. It is not synchronized to an account or cloud service.
+              </div>
+            </div>
+          </div>
+          
         </section>
 
         <!-- Right Column: Shared Threat Diagnostic Center -->
@@ -613,6 +809,13 @@
                 <div class="findings-list" id="findings-list">
                   <div class="empty-findings-state" id="empty-findings">
                     ⚡ Execute scans to query blacklist databases and heuristical vectors.
+                  </div>
+                </div>
+                
+                <div id="threat-intel-results" style="display: none; margin-top: 30px;">
+                  <h3 style="margin: 0 0 10px 0; color: #fff; font-size: 14px;">EXTERNAL THREAT INTELLIGENCE</h3>
+                  <div id="ti-providers-grid" class="eml-grid">
+                    <!-- Providers populated via JS -->
                   </div>
                 </div>
               </div>
@@ -932,12 +1135,29 @@
     </div>
   </div>
 
+  <!-- Phase 2 Core -->
+  <script src="core/riskTypes.js"></script>
+  <script src="core/riskEngine.js"></script>
+
   <!-- Utility JavaScript libraries linked -->
   <script src="utils/simRegistry.js"></script>
+  <!-- History Modules -->
+  <script src="history/historyStore.js"></script>
+  <script src="history/historyManager.js"></script>
+  <script src="history/reportRenderer.js"></script>
+  <script src="history/historyUi.js"></script>
+  
   <script src="app.js"></script>
   <script src="utils/headerAnalyzer.js"></script>
   <script src="utils/fileScanner.js"></script>
   <script src="utils/smsAnalyzer.js"></script>
   <script src="utils/callScanner.js"></script>
+
+  <!-- Phase 3 Analyzers -->
+  <script src="utils/jsQR.js"></script>
+  <script src="utils/urlAnalyzer.js"></script>
+  <script src="utils/domainAnalyzer.js"></script>
+  <script src="utils/qrAnalyzer.js"></script>
+  <script src="utils/sslAnalyzer.js"></script>
 </body>
 </html>
