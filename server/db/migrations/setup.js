@@ -273,6 +273,108 @@ function runMigrations() {
       FOREIGN KEY(actor_user_id) REFERENCES users(id) ON DELETE SET NULL
     );
 
+    CREATE TABLE IF NOT EXISTS indicators (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      type TEXT NOT NULL,
+      value TEXT NOT NULL,
+      normalized_value TEXT NOT NULL,
+      fingerprint TEXT UNIQUE NOT NULL,
+      source TEXT,
+      confidence INTEGER DEFAULT 0,
+      severity TEXT,
+      status TEXT DEFAULT 'active',
+      first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+      last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+      created_by TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+      FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS security_incidents (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      severity TEXT NOT NULL,
+      status TEXT DEFAULT 'NEW',
+      category TEXT NOT NULL,
+      source TEXT,
+      created_by TEXT,
+      assigned_to TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      resolved_at DATETIME,
+      closed_at DATETIME,
+      FOREIGN KEY(organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+      FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(assigned_to) REFERENCES users(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS incident_events (
+      id TEXT PRIMARY KEY,
+      incident_id TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      actor_user_id TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      metadata TEXT,
+      FOREIGN KEY(incident_id) REFERENCES security_incidents(id) ON DELETE CASCADE,
+      FOREIGN KEY(actor_user_id) REFERENCES users(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS incident_iocs (
+      incident_id TEXT NOT NULL,
+      ioc_id TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (incident_id, ioc_id),
+      FOREIGN KEY(incident_id) REFERENCES security_incidents(id) ON DELETE CASCADE,
+      FOREIGN KEY(ioc_id) REFERENCES indicators(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS investigations (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      status TEXT DEFAULT 'OPEN',
+      created_by TEXT,
+      assigned_to TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      closed_at DATETIME,
+      FOREIGN KEY(organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+      FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL,
+      FOREIGN KEY(assigned_to) REFERENCES users(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS security_campaigns (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      type TEXT NOT NULL,
+      status TEXT DEFAULT 'DRAFT',
+      created_by TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      started_at DATETIME,
+      ended_at DATETIME,
+      FOREIGN KEY(organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+      FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS campaign_events (
+      id TEXT PRIMARY KEY,
+      campaign_id TEXT NOT NULL,
+      target_user_id TEXT,
+      event_type TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      metadata TEXT,
+      FOREIGN KEY(campaign_id) REFERENCES security_campaigns(id) ON DELETE CASCADE,
+      FOREIGN KEY(target_user_id) REFERENCES users(id) ON DELETE SET NULL
+    );
+
 
   `);
 }

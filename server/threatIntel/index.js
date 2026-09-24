@@ -121,3 +121,4 @@ router.post('/hash', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.executeProviders = executeProviders;
