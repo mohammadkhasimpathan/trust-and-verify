@@ -369,13 +369,13 @@ function populateFindings(findings) {
     
     const desc = document.createElement('div');
     desc.className = 'finding-desc';
-    desc.textContent = find.message;
+    desc.textContent = find.description || find.message || find.explanation || 'No description provided.';
     
     card.appendChild(title);
     card.appendChild(desc);
     
-    // Phase 1: Add detailed view button if structured data is present
-    if (find.explanation || find.evidence || find.recommendation) {
+    // Phase 1/2: Add detailed view button if structured data is present
+    if (find.explanation || find.evidence || find.recommendation || find.description) {
       const btn = document.createElement('button');
       btn.className = 'btn-finding-detail';
       btn.textContent = 'View Details';
@@ -394,7 +394,7 @@ function openFindingDetails(finding) {
   document.getElementById('intel-modal-title').textContent = `THREAT_INTEL://${finding.severity || 'WARNING'}`;
   document.getElementById('intel-modal-badge').textContent = finding.category || 'ANALYSIS';
   document.getElementById('intel-modal-heading').textContent = finding.title;
-  document.getElementById('intel-modal-desc').textContent = finding.explanation || finding.message;
+  document.getElementById('intel-modal-desc').textContent = finding.description || finding.explanation || finding.message;
   
   const codeBlock = document.getElementById('intel-modal-code');
   if (finding.evidence) {
@@ -532,7 +532,7 @@ async function runHeaderAnalysis() {
       });
       
       updateThreatGauge(results.score, results.threatLevel);
-      populateFindings(results.details || results.findings);
+      populateFindings(results.indicators || results.details || results.findings);
       populateParsedHeaders(results.parsedHeaders);
       
       let verdict = 'Email inspection complete. No critical structural anomalies detected.';
@@ -658,12 +658,159 @@ async function runEmlScan() {
     }
     if (_threatVerdictSummary) _threatVerdictSummary.textContent = verdict;
     
+    // Phase 1 EML UI Rendering
+    if (typeof populateEmlResults === 'function') {
+      populateEmlResults(results);
+    }
+    
     addLogLine(`[SUCCESS] EML backend scan complete. Threat Score: ${results.score || 0}%`, 'success');
   } catch (e) {
     addLogLine(`[ERROR] EML scan failed: ${e.message}`, 'critical');
   } finally {
     scanBtn.removeAttribute('disabled');
   }
+}
+
+}
+
+// EML UI Rendering Logic
+function populateEmlResults(results) {
+  const container = document.getElementById('eml-results-container');
+  if (!container) return;
+  container.style.display = 'block';
+
+  // 1. Message Envelope
+  const msgBox = document.getElementById('eml-res-message');
+  if (msgBox) {
+    msgBox.innerHTML = '';
+    const m = results.message || {};
+    const fields = [
+      { k: 'From', v: m.from },
+      { k: 'To', v: m.to },
+      { k: 'CC', v: m.cc },
+      { k: 'Reply-To', v: m.replyTo },
+      { k: 'Return-Path', v: m.returnPath },
+      { k: 'Subject', v: m.subject },
+      { k: 'Date', v: m.date }
+    ];
+    fields.forEach(f => {
+      if (f.v) {
+        msgBox.innerHTML += `<div class="eml-data-row"><span class="eml-data-label">${f.k}</span><span class="eml-data-value">${escapeHtml(f.v)}</span></div>`;
+      }
+    });
+  }
+
+  // 2. Authentication
+  const authBox = document.getElementById('eml-res-auth');
+  if (authBox) {
+    authBox.innerHTML = '';
+    const a = results.authentication || {};
+    const authFields = [
+      { k: 'SPF', v: a.spf },
+      { k: 'DKIM', v: a.dkim },
+      { k: 'DMARC', v: a.dmarc }
+    ];
+    authFields.forEach(f => {
+      let colorClass = 'safe';
+      if (f.v === 'fail') colorClass = 'danger';
+      else if (f.v === 'softfail' || f.v === 'neutral') colorClass = 'warning';
+      
+      authBox.innerHTML += `<div class="eml-data-row"><span class="eml-data-label">${f.k}</span><span class="eml-data-value ${colorClass}">${escapeHtml(f.v || 'none')}</span></div>`;
+    });
+  }
+
+  // 3. Routing
+  const routingBox = document.getElementById('eml-res-routing');
+  if (routingBox) {
+    routingBox.innerHTML = '';
+    const r = results.routing || {};
+    routingBox.innerHTML += `<div class="eml-data-row" style="grid-column: span 2;"><span class="eml-data-label">Originating IP</span><span class="eml-data-value">${escapeHtml(r.originatingIP || 'Unknown')}</span></div>`;
+    if (r.hops && r.hops.length > 0) {
+      r.hops.forEach((h, i) => {
+        routingBox.innerHTML += `<div class="eml-data-row" style="grid-column: span 2;"><span class="eml-data-label">Hop ${i + 1}</span><span class="eml-data-value">From: ${escapeHtml(h.from || '?')} | By: ${escapeHtml(h.by || '?')} | IP: ${escapeHtml(h.ip || '?')}</span></div>`;
+      });
+    }
+  }
+
+  // 4. Links
+  const linksBox = document.getElementById('eml-res-links');
+  if (linksBox) {
+    linksBox.innerHTML = '';
+    const l = results.links || [];
+    if (l.length === 0) {
+      linksBox.innerHTML = '<span style="color:#aaa; font-size:12px;">No links found.</span>';
+    } else {
+      l.forEach(link => {
+        const btn = document.createElement('span');
+        btn.className = 'eml-link-item';
+        btn.textContent = link.length > 60 ? link.substring(0, 57) + '...' : link;
+        btn.onclick = () => openSafeLinkModal(link);
+        linksBox.appendChild(btn);
+      });
+    }
+  }
+
+  // 5. Attachments
+  const attBox = document.getElementById('eml-res-attachments');
+  if (attBox) {
+    attBox.innerHTML = '';
+    const atts = results.attachments || [];
+    if (atts.length === 0) {
+      attBox.innerHTML = '<span style="color:#aaa; font-size:12px;">No attachments found.</span>';
+    } else {
+      atts.forEach(att => {
+        const color = (att.riskCategory === 'Critical' || att.riskCategory === 'High') ? 'text-danger' : 'text-success';
+        attBox.innerHTML += `<div class="eml-attachment-item">
+          <div style="font-weight:bold; margin-bottom:5px;">${escapeHtml(att.filename)} <span class="badge ${color}">[${escapeHtml(att.riskCategory)}]</span></div>
+          <div style="font-size:12px; color:#aaa;">Type: ${escapeHtml(att.contentType)} | Size: ${formatBytes(att.size)}</div>
+          <div style="font-size:12px; color:#aaa; font-family: monospace;">SHA-256: ${escapeHtml(att.hash)}</div>
+        </div>`;
+      });
+    }
+  }
+}
+
+function openSafeLinkModal(urlStr) {
+  const modal = document.getElementById('safe-link-modal');
+  if (!modal) return;
+  
+  let host = '-', protocol = '-', port = '-', pathname = '-', search = '-', hash = '-';
+  try {
+    const u = new URL(urlStr);
+    host = u.hostname;
+    protocol = u.protocol;
+    port = u.port || (protocol === 'https:' ? '443' : '80');
+    pathname = u.pathname;
+    search = u.search;
+    hash = u.hash;
+  } catch (e) {
+    host = 'Invalid URL format';
+  }
+
+  document.getElementById('sl-url').textContent = urlStr;
+  document.getElementById('sl-host').textContent = host;
+  document.getElementById('sl-protocol').textContent = protocol;
+  document.getElementById('sl-port').textContent = port;
+  document.getElementById('sl-path').textContent = pathname;
+  document.getElementById('sl-query').textContent = search;
+  document.getElementById('sl-fragment').textContent = hash;
+  
+  modal.classList.add('active');
+}
+
+function closeSafeLinkModal() {
+  const modal = document.getElementById('safe-link-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function escapeHtml(unsafe) {
+  if (!unsafe) return '';
+  return String(unsafe)
+       .replace(/&/g, "&amp;")
+       .replace(/</g, "&lt;")
+       .replace(/>/g, "&gt;")
+       .replace(/"/g, "&quot;")
+       .replace(/'/g, "&#039;");
 }
 
 // Email Attachment Handler
@@ -735,7 +882,7 @@ async function runFileScan() {
     });
 
     updateThreatGauge(results.score, results.threatLevel);
-    populateFindings(results.details);
+    populateFindings(results.indicators || results.details);
 
     let verdict = 'File scanning complete. Binary structure matches safe signatures.';
     if (results.score >= 80) {
@@ -819,7 +966,7 @@ function runSMSAnalysis() {
       });
 
       updateThreatGauge(results.score, results.threatLevel);
-      populateFindings(results.details);
+      populateFindings(results.indicators || results.details);
 
       let verdict = 'SMS scan complete. No critical threat signatures found.';
       if (results.score >= 80) {
@@ -876,7 +1023,7 @@ function runPhoneScan() {
       });
 
       updateThreatGauge(results.score, results.threatLevel);
-      populateFindings(results.details);
+      populateFindings(results.indicators || results.details);
 
       let verdict = 'Caller lookup complete. Number shows clean reputation history.';
       if (results.score >= 80) {
@@ -1189,7 +1336,7 @@ function applySIMEvaluation(res, logToTerminal = true) {
 
   // 4. Update Diagnostics & Threat Gauge
   updateThreatGauge(res.threatScore, res.threatLevel);
-  populateFindings(res.details);
+  populateFindings(res.indicators || res.details);
 
   if (status === 'SIM_SWAP_ATTACK') {
     if (_threatVerdictSummary) _threatVerdictSummary.textContent = 'CRITICAL TELECOM ALARM: Unauthorized SIM swap detected! IMSI/ICCID mismatch with Knox secure enclave.';

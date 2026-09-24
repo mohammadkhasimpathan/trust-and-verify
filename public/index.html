@@ -208,6 +208,47 @@
               <button type="button" class="action-btn" id="btn-run-eml" onclick="runEmlScan()" disabled>
                 <span>RUN .EML FORENSIC ANALYSIS</span>
               </button>
+
+              <div id="eml-results-container" class="eml-results-container" style="display: none; margin-top: 20px;">
+                <div class="eml-results-header">
+                  <h3>.EML ANALYSIS RESULTS</h3>
+                </div>
+                
+                <div class="eml-result-section">
+                  <h4>ENVELOPE / MESSAGE</h4>
+                  <div class="eml-grid" id="eml-res-message">
+                    <!-- Populated via JS -->
+                  </div>
+                </div>
+
+                <div class="eml-result-section">
+                  <h4>AUTHENTICATION (SPF / DKIM / DMARC)</h4>
+                  <div class="eml-grid" id="eml-res-auth">
+                    <!-- Populated via JS -->
+                  </div>
+                </div>
+
+                <div class="eml-result-section">
+                  <h4>ROUTING HOPS</h4>
+                  <div class="eml-grid" id="eml-res-routing">
+                    <!-- Populated via JS -->
+                  </div>
+                </div>
+
+                <div class="eml-result-section">
+                  <h4>EXTRACTED LINKS</h4>
+                  <div class="eml-list" id="eml-res-links">
+                    <!-- Populated via JS -->
+                  </div>
+                </div>
+
+                <div class="eml-result-section">
+                  <h4>ATTACHMENTS</h4>
+                  <div class="eml-list" id="eml-res-attachments">
+                    <!-- Populated via JS -->
+                  </div>
+                </div>
+              </div>
             </div>
 
             <!-- Email Files Sub-tab -->
@@ -840,6 +881,53 @@
           </div>
         </div>
 
+      </div>
+    </div>
+  </div>
+
+  <!-- Safe Link Preview Modal -->
+  <div class="modal-overlay" id="safe-link-modal">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div class="terminal-dots">
+          <span class="dot red"></span>
+          <span class="dot yellow"></span>
+          <span class="dot green"></span>
+        </div>
+        <span class="modal-title">URL_FORENSICS://SAFE_PREVIEW</span>
+        <button class="modal-close" onclick="closeSafeLinkModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-badge warning">SIMULATED PREVIEW</div>
+        <h2 class="modal-heading" style="word-break: break-all;" id="sl-url">https://example.com</h2>
+        <p class="modal-desc text-danger">⚠️ External destination — not opened.</p>
+        
+        <div class="binding-grid" style="margin-top: 15px;">
+          <div class="binding-item">
+            <span class="binding-k">HOST / DOMAIN:</span>
+            <span class="binding-v" id="sl-host">-</span>
+          </div>
+          <div class="binding-item">
+            <span class="binding-k">PROTOCOL:</span>
+            <span class="binding-v" id="sl-protocol">-</span>
+          </div>
+          <div class="binding-item">
+            <span class="binding-k">PORT:</span>
+            <span class="binding-v" id="sl-port">-</span>
+          </div>
+          <div class="binding-item">
+            <span class="binding-k">PATH:</span>
+            <span class="binding-v" id="sl-path">-</span>
+          </div>
+          <div class="binding-item" style="grid-column: span 2;">
+            <span class="binding-k">QUERY:</span>
+            <span class="binding-v" id="sl-query">-</span>
+          </div>
+          <div class="binding-item" style="grid-column: span 2;">
+            <span class="binding-k">FRAGMENT:</span>
+            <span class="binding-v" id="sl-fragment">-</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>

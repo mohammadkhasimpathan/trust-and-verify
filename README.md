@@ -31,6 +31,9 @@ trust-verify/
 │   ├── app.js             # Frontend controller (all modules)
 │   ├── manifest.json      # PWA manifest
 │   ├── sw.js              # Service worker (offline support)
+│   ├── core/              
+│   │   ├── riskEngine.js  # Unified Risk Engine architecture
+│   │   └── riskTypes.js   # Centralized threat definitions
 │   └── utils/
 │       ├── headerAnalyzer.js   # Email header analysis logic
 │       ├── fileScanner.js      # File attachment scanning logic
@@ -215,6 +218,18 @@ Tests use the Node.js built-in test runner (`node:test`) — no extra dependenci
 4. **SIM module uses `localStorage`** — Not a secure hardware enclave. Suitable for education/simulation only.
 5. **File scanning is heuristic-only** — No connection to VirusTotal, ClamAV, or other AV engines. Planned for Phase 2.
 
+## Email Threat Scanner (Phase 1)
+
+The Email Threat Scanner analyzes `.eml` files and raw headers to simulate email security defenses. Features include:
+- **Header Analysis**: Parses `Received` chains, `SPF/DKIM/DMARC` authentication, and `X-Originating-IP`.
+- **Identity Verification**: Checks for `Reply-To` vs `From` and `Return-Path` mismatches.
+- **Domain & Brand Protection**: Detects IDN (Punycode/homographs) and Brand Impersonation using heuristic domain analysis.
+- **.EML Analyzer**: Fully parses raw message files to extract envelope data, authentication headers, routing, and links.
+- **Attachment Forensics**: Simulates heuristic scanning on attachments (calculates SHA-256 and identifies dangerous extensions) without executing them.
+- **Safe Link Preview**: Extracts and categorizes embedded links in the email body and headers, providing a safe preview UI without making remote network requests.
+
+> **Note**: All email analyses are based on **simulated and heuristic** behavior. The scanner does **NOT** query external threat-intelligence endpoints (like VirusTotal or Google Safe Browsing) nor does it perform DNS lookups. No email attachments or URLs are executed or requested by the server.
+
 ---
 
 ## Deployment Limitation — Express + Netlify
@@ -236,6 +251,6 @@ Tests use the Node.js built-in test runner (`node:test`) — no extra dependenci
 | Phase | Status | Scope |
 |---|---|---|
 | Phase 0 | ✅ Complete | Security hardening, stability, testing, documentation |
-| Phase 1 | 🔜 Planned | UI refactor, CSP, custom modal dialogs, mobile responsiveness |
+| Phase 1 | ✅ Complete | Email Threat Scanner v2 (Heuristic EML analysis, Safe Links, IDN detection, structural findings) |
 | Phase 2 | 🔜 Planned | URL scanner, QR scanner, VirusTotal integration |
 | Phase 3 | 🔜 Planned | Serverless backend migration, user accounts |

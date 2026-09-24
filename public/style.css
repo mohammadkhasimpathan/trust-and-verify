@@ -1829,3 +1829,73 @@ textarea:focus {
   font-family: var(--font-mono);
 }
 
+
+/* EML Results CSS */
+.eml-results-container {
+  border: 1px solid var(--accent-cyan);
+  background-color: rgba(0, 240, 255, 0.05);
+  padding: 15px;
+  border-radius: 4px;
+}
+.eml-results-header {
+  border-bottom: 1px solid var(--accent-cyan);
+  margin-bottom: 15px;
+  padding-bottom: 5px;
+}
+.eml-results-header h3 {
+  margin: 0;
+  color: var(--accent-cyan);
+}
+.eml-result-section {
+  margin-bottom: 20px;
+}
+.eml-result-section h4 {
+  margin: 0 0 10px 0;
+  color: #fff;
+  font-size: 14px;
+  opacity: 0.9;
+}
+.eml-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.eml-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.eml-data-row {
+  display: flex;
+  flex-direction: column;
+  background-color: rgba(255, 255, 255, 0.05);
+  padding: 8px;
+  border-left: 2px solid var(--accent-cyan);
+}
+.eml-data-label {
+  font-size: 11px;
+  color: #aaa;
+  margin-bottom: 4px;
+}
+.eml-data-value {
+  font-family: 'Fira Code', monospace;
+  font-size: 13px;
+  color: #fff;
+  word-break: break-all;
+}
+.eml-link-item {
+  color: var(--accent-cyan);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 5px;
+  background: rgba(0,0,0,0.3);
+  display: inline-block;
+}
+.eml-link-item:hover {
+  background: rgba(0, 240, 255, 0.2);
+}
+.eml-attachment-item {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid #333;
+  padding: 10px;
+}

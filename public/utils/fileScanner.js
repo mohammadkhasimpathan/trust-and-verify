@@ -3,6 +3,17 @@
  * Performs heuristic analysis on file attachments for malware/ransomware signatures.
  */
 
+let RiskEngine;
+if (typeof require === 'function') {
+  try {
+    RiskEngine = require('../core/riskEngine');
+  } catch (e) {
+    RiskEngine = typeof window !== 'undefined' ? window.RiskEngine : null;
+  }
+} else {
+  RiskEngine = typeof window !== 'undefined' ? window.RiskEngine : null;
+}
+
 // Simulated database of dangerous file hashes (SHA-256)
 const THREAT_HASHES = {
   // WannaCry ransomware
@@ -39,13 +50,15 @@ function analyzeFile(filename, contentBufferOrString, fileHash = '') {
   const reports = [];
   let score = 0;
   const details = [];
+  const indicators = [];
 
   if (!filename) {
     return {
       threatLevel: 'Unknown',
       score: 0,
       logs: ['[ERROR] No filename provided for scanning.'],
-      details: []
+      details: [],
+      indicators: []
     };
   }
 
@@ -70,6 +83,17 @@ function analyzeFile(filename, contentBufferOrString, fileHash = '') {
       title: 'Dangerous Executable Extension',
       message: `The file ends in a dangerous executable extension (.${ext}). Malware and ransomware are frequently compiled into executable files that launch automatically when opened.`
     });
+    indicators.push({
+      id: 'FILE_EXTENSION_EXECUTABLE',
+      category: 'ATTACHMENT',
+      severity: 'CRITICAL',
+      weight: 85,
+      title: 'Dangerous Executable Extension',
+      description: `The file ends in a dangerous executable extension (.${ext}). Malware and ransomware are frequently compiled into executable files.`,
+      evidence: `Extension: .${ext}`,
+      recommendation: 'Do not run this file. Delete it immediately.',
+      source: 'LOCAL_HEURISTIC'
+    });
   } else if (scriptExtensions.includes(ext)) {
     score += 75;
     reports.push(`[CRITICAL] File is a script file (ext: .${ext}). Scripts can run system commands and download payloads.`);
@@ -77,6 +101,17 @@ function analyzeFile(filename, contentBufferOrString, fileHash = '') {
       type: 'danger',
       title: 'Script-based Threat Vector',
       message: `Script files (.${ext}) can run administrative shell commands on your operating system, bypassing security controls to download and install ransomware in the background.`
+    });
+    indicators.push({
+      id: 'FILE_EXTENSION_SCRIPT',
+      category: 'ATTACHMENT',
+      severity: 'CRITICAL',
+      weight: 75,
+      title: 'Script-based Threat Vector',
+      description: `Script files (.${ext}) can run administrative shell commands on your operating system.`,
+      evidence: `Extension: .${ext}`,
+      recommendation: 'Do not execute script files from unknown sources.',
+      source: 'LOCAL_HEURISTIC'
     });
   } else if (macroExtensions.includes(ext)) {
     score += 40;
@@ -86,6 +121,17 @@ function analyzeFile(filename, contentBufferOrString, fileHash = '') {
       title: 'Macro-Enabled Document Alert',
       message: `Office documents (.${ext}) can contain embedded VBA macros. Attackers use social engineering to trick victims into enabling macros, which then triggers a malware download.`
     });
+    indicators.push({
+      id: 'FILE_EXTENSION_MACRO',
+      category: 'ATTACHMENT',
+      severity: 'MEDIUM',
+      weight: 40,
+      title: 'Macro-Enabled Document Alert',
+      description: `Office documents (.${ext}) can contain embedded VBA macros.`,
+      evidence: `Extension: .${ext}`,
+      recommendation: 'Do not enable macros or editing if prompted by the document reader.',
+      source: 'LOCAL_HEURISTIC'
+    });
   } else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
     score += 25;
     reports.push(`[WARN] File is a compressed archive (ext: .${ext}). Archives are frequently used to hide executable malware from basic scanners.`);
@@ -93,6 +139,17 @@ function analyzeFile(filename, contentBufferOrString, fileHash = '') {
       type: 'warning',
       title: 'Archive Encryption / Obfuscation Risk',
       message: `Compressed archive files (.${ext}) are often used to wrap malicious payloads. Attackers zip files to bypass basic network scanners and email gateway filters.`
+    });
+    indicators.push({
+      id: 'FILE_EXTENSION_ARCHIVE',
+      category: 'ATTACHMENT',
+      severity: 'LOW',
+      weight: 25,
+      title: 'Archive Encryption / Obfuscation Risk',
+      description: `Compressed archive files (.${ext}) are often used to wrap malicious payloads.`,
+      evidence: `Extension: .${ext}`,
+      recommendation: 'Exercise caution when extracting files. Scan the extracted contents before opening.',
+      source: 'LOCAL_HEURISTIC'
     });
   } else {
     reports.push(`[OK] Extension format .${ext || 'plain'} is classified as low risk for direct execution.`);
@@ -111,6 +168,17 @@ function analyzeFile(filename, contentBufferOrString, fileHash = '') {
         title: `Signature Match: ${threat.name}`,
         message: `This file's cryptographic hash aligns exactly with a known sample of ${threat.name} (${threat.type}). ${threat.description} Immediate quarantine required.`
       });
+      indicators.push({
+        id: `FILE_HASH_MATCH_${cleanHash.substring(0, 8)}`,
+        category: 'REPUTATION',
+        severity: 'CRITICAL',
+        weight: 100,
+        title: `Signature Match: ${threat.name}`,
+        description: `This file's cryptographic hash aligns exactly with a known sample of ${threat.name} (${threat.type}). ${threat.description}`,
+        evidence: `SHA256: ${cleanHash}`,
+        recommendation: 'Immediate quarantine required. Do not execute this file.',
+        source: 'LOCAL_HEURISTIC'
+      });
     } else {
       reports.push(`[OK] Hash does not match any known signatures in local malware threat database.`);
     }
@@ -127,7 +195,7 @@ function analyzeFile(filename, contentBufferOrString, fileHash = '') {
 
     if (contentString) {
       // Look for suspicious keywords often found in email scripts/downloader malware
-      const indicators = [
+      const rules = [
         { regex: /WScript\.Shell/i, score: 30, desc: 'Windows Script Host instantiation (WScript.Shell)' },
         { regex: /ActiveXObject/i, score: 30, desc: 'ActiveX object creation (ActiveXObject)' },
         { regex: /ShellExecute/i, score: 35, desc: 'Shell command execution API (ShellExecute)' },
@@ -139,7 +207,7 @@ function analyzeFile(filename, contentBufferOrString, fileHash = '') {
       ];
 
       let foundCount = 0;
-      for (const ind of indicators) {
+      for (const ind of rules) {
         if (ind.regex.test(contentString)) {
           score += ind.score;
           foundCount++;
@@ -148,6 +216,17 @@ function analyzeFile(filename, contentBufferOrString, fileHash = '') {
             type: 'danger',
             title: `Suspicious Script Pattern: ${ind.desc}`,
             message: `The file contents contain code matching a pattern highly correlated with automated downloaders and macros: "${ind.regex}".`
+          });
+          indicators.push({
+            id: `FILE_SCRIPT_PATTERN_${ind.desc.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`,
+            category: 'CONTENT',
+            severity: 'HIGH',
+            weight: ind.score,
+            title: `Suspicious Script Pattern: ${ind.desc}`,
+            description: `The file contents contain code matching a pattern highly correlated with automated downloaders and macros: "${ind.regex}".`,
+            evidence: ind.desc,
+            recommendation: 'Do not run this file. Delete it immediately.',
+            source: 'LOCAL_HEURISTIC'
           });
         }
       }
@@ -158,7 +237,16 @@ function analyzeFile(filename, contentBufferOrString, fileHash = '') {
     }
   }
 
-  // Determine threat level based on score
+  let finalRiskResult = null;
+  if (RiskEngine) {
+    finalRiskResult = RiskEngine.analyze({
+      module: 'file',
+      indicators,
+      metadata: { filename, hash: fileHash }
+    });
+  }
+
+  // Determine threat level based on score (legacy)
   let threatLevel = 'Safe';
   if (score >= 75) {
     threatLevel = 'Critical';
@@ -171,10 +259,17 @@ function analyzeFile(filename, contentBufferOrString, fileHash = '') {
   }
 
   return {
-    threatLevel,
-    score: Math.min(score, 100),
+    threatLevel: finalRiskResult ? (finalRiskResult.severity.charAt(0) + finalRiskResult.severity.slice(1).toLowerCase()) : threatLevel,
+    score: finalRiskResult ? finalRiskResult.score : Math.min(score, 100),
     logs: reports,
-    details
+    details: finalRiskResult ? finalRiskResult.indicators.map(i => ({
+      type: (i.severity === 'HIGH' || i.severity === 'CRITICAL') ? 'danger' : 'warning',
+      title: i.title,
+      message: i.description
+    })) : details,
+    indicators: finalRiskResult ? finalRiskResult.indicators : indicators,
+    verdict: finalRiskResult ? finalRiskResult.verdict : 'UNKNOWN',
+    summary: finalRiskResult ? finalRiskResult.summary : ''
   };
 }
 

@@ -3,9 +3,21 @@
  * Analyzes SMS/text messages for spam, phishing (smishing), and cyberbullying/harassment signatures.
  */
 
+let RiskEngine;
+if (typeof require === 'function') {
+  try {
+    RiskEngine = require('../core/riskEngine');
+  } catch (e) {
+    RiskEngine = typeof window !== 'undefined' ? window.RiskEngine : null;
+  }
+} else {
+  RiskEngine = typeof window !== 'undefined' ? window.RiskEngine : null;
+}
+
 function analyzeSMS(smsText) {
   const logs = [];
   const details = [];
+  const indicators = [];
   let score = 0;
 
   if (!smsText || smsText.trim() === '') {
@@ -13,7 +25,8 @@ function analyzeSMS(smsText) {
       threatLevel: 'Unknown',
       score: 0,
       logs: ['[ERROR] No SMS content provided for evaluation.'],
-      details: []
+      details: [],
+      indicators: []
     };
   }
 
@@ -43,11 +56,33 @@ function analyzeSMS(smsText) {
           title: 'Obfuscated Link Shortener',
           message: 'SMS contains a shortened URL (e.g., bit.ly). Attackers hide malicious phishing portals or download links behind shorteners to bypass filters.'
         });
+        indicators.push({
+          id: 'SMS_SHORTENED_URL',
+          category: 'LINK',
+          severity: 'HIGH',
+          weight: 20,
+          title: 'Obfuscated Link Shortener',
+          description: 'SMS contains a shortened URL. Attackers hide malicious phishing portals behind shorteners.',
+          evidence: `Link: ${link}`,
+          recommendation: 'Do not click the link. Verify through an independent channel.',
+          source: 'LOCAL_HEURISTIC'
+        });
       } else {
         details.push({
           type: 'warning',
           title: 'External Link in SMS',
           message: `Contains link "${link}". Legitimate institutions rarely send direct login links via text message.`
+        });
+        indicators.push({
+          id: 'SMS_EXTERNAL_URL',
+          category: 'LINK',
+          severity: 'LOW',
+          weight: 5, // Account for the initial +25 that applies to all links (handled below)
+          title: 'External Link in SMS',
+          description: `Legitimate institutions rarely send direct login links via text message.`,
+          evidence: `Link: ${link}`,
+          recommendation: 'Verify the link destination carefully before clicking.',
+          source: 'LOCAL_HEURISTIC'
         });
       }
     });
@@ -76,6 +111,17 @@ function analyzeSMS(smsText) {
       title: 'Urgent Coercive Phishing Language',
       message: 'The text message demands immediate action or warns of account suspension. Artificial panic is the primary weapon in social engineering.'
     });
+    indicators.push({
+      id: 'SMS_URGENCY_KEYWORD',
+      category: 'CONTENT',
+      severity: 'HIGH',
+      weight: Math.min(urgencyTriggers * 15, 40),
+      title: 'Urgent Coercive Phishing Language',
+      description: 'The text message demands immediate action or warns of account suspension. Artificial panic is a common tactic.',
+      evidence: `${urgencyTriggers} urgency indicator(s) found.`,
+      recommendation: 'Do not let urgency force you into clicking links or providing info. Verify the sender independently.',
+      source: 'LOCAL_HEURISTIC'
+    });
   }
 
   // 3. Brand Spoofing Checks
@@ -96,6 +142,17 @@ function analyzeSMS(smsText) {
       type: 'warning',
       title: `Brand Impersonation Risk`,
       message: `The text references the service "${brandFlagged.toUpperCase()}". Phishing attacks leverage familiar brands to lower user suspicion.`
+    });
+    indicators.push({
+      id: 'SMS_BRAND_SPOOF',
+      category: 'IDENTITY',
+      severity: 'MEDIUM',
+      weight: 20,
+      title: 'Brand Impersonation Risk',
+      description: `The text references the service "${brandFlagged.toUpperCase()}". Phishing attacks leverage familiar brands.`,
+      evidence: `Brand: ${brandFlagged.toUpperCase()}`,
+      recommendation: 'Verify the message through the official application or website rather than SMS links.',
+      source: 'LOCAL_HEURISTIC'
     });
   }
 
@@ -125,6 +182,17 @@ function analyzeSMS(smsText) {
       title: 'Harassment & Threat Coercion',
       message: 'The SMS contains language indicative of blackmail, physical threat, or cyberbullying coercion. Immediately capture logs for security record.'
     });
+    indicators.push({
+      id: 'SMS_HARASSMENT_THREAT',
+      category: 'BEHAVIOR',
+      severity: 'CRITICAL',
+      weight: Math.min(threatCount * 25, 55),
+      title: 'Harassment & Threat Coercion',
+      description: 'The SMS contains language indicative of blackmail, physical threat, or cyberbullying coercion.',
+      evidence: `${threatCount} threat indicator(s) found.`,
+      recommendation: 'Do not respond to threats. Capture evidence and report to authorities or HR if applicable.',
+      source: 'LOCAL_HEURISTIC'
+    });
   }
 
   // 2. Insult, Toxic, or Self-Harm Coercion
@@ -148,9 +216,29 @@ function analyzeSMS(smsText) {
       title: 'Cyberbullying & Verbal Abuse',
       message: 'Identified derogatory names, hostile insults, or messages encouraging self-harm. Cyberbullying and repetitive toxic inputs present high psychological threats.'
     });
+    indicators.push({
+      id: 'SMS_TOXIC_LANGUAGE',
+      category: 'BEHAVIOR',
+      severity: 'CRITICAL',
+      weight: Math.min(toxicCount * 20, 50),
+      title: 'Cyberbullying & Verbal Abuse',
+      description: 'Identified derogatory names, hostile insults, or messages encouraging self-harm.',
+      evidence: `${toxicCount} toxic indicator(s) found.`,
+      recommendation: 'Block the sender. If this is persistent, escalate to moderation or authorities.',
+      source: 'LOCAL_HEURISTIC'
+    });
   }
 
-  // Cap score at 100
+  let finalRiskResult = null;
+  if (RiskEngine) {
+    finalRiskResult = RiskEngine.analyze({
+      module: 'sms',
+      indicators,
+      metadata: { textLength: smsText.length }
+    });
+  }
+
+  // Cap score at 100 (legacy)
   score = Math.min(score, 100);
 
   // Determine threat level based on final score
@@ -168,10 +256,17 @@ function analyzeSMS(smsText) {
   logs.push(`[SUCCESS] SMS evaluation complete. Score computed: ${score}% [Rating: ${threatLevel}]`);
 
   return {
-    threatLevel,
-    score,
+    threatLevel: finalRiskResult ? (finalRiskResult.severity.charAt(0) + finalRiskResult.severity.slice(1).toLowerCase()) : threatLevel,
+    score: finalRiskResult ? finalRiskResult.score : score,
     logs,
-    details
+    details: finalRiskResult ? finalRiskResult.indicators.map(i => ({
+      type: (i.severity === 'HIGH' || i.severity === 'CRITICAL') ? 'danger' : 'warning',
+      title: i.title,
+      message: i.description
+    })) : details,
+    indicators: finalRiskResult ? finalRiskResult.indicators : indicators,
+    verdict: finalRiskResult ? finalRiskResult.verdict : 'UNKNOWN',
+    summary: finalRiskResult ? finalRiskResult.summary : ''
   };
 }
 

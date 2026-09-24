@@ -20,6 +20,17 @@ const STORAGE_KEY_PIN_HASH = 'trust_verify_pin_hash';
 const DEFAULT_HARDWARE_IMEI = '358924091823901';
 const DEFAULT_HARDWARE_ENCLAVE_ID = 'KNOX-SEC-ENCLAVE-994A-FF02';
 
+let RiskEngine;
+if (typeof require === 'function') {
+  try {
+    RiskEngine = require('../core/riskEngine');
+  } catch (e) {
+    RiskEngine = typeof window !== 'undefined' ? window.RiskEngine : null;
+  }
+} else {
+  RiskEngine = typeof window !== 'undefined' ? window.RiskEngine : null;
+}
+
 // Simulated preset SIM cards
 const SIM_PRESETS = {
   verizon_5g: {
@@ -146,6 +157,7 @@ class SIMRegistryEngine {
   evaluateSIMSecurity() {
     const logs = [];
     const details = [];
+    const indicators = [];
     let threatScore = 0;
     let status = 'UNREGISTERED'; // 'NO_SIM', 'UNREGISTERED', 'REGISTERED_SECURE', 'SIM_SWAP_ATTACK'
 
@@ -154,16 +166,44 @@ class SIMRegistryEngine {
     if (!this.currentSIM) {
       status = 'NO_SIM';
       logs.push('[WARN] SIM Socket 1 is EMPTY. Cellular radio offline.');
+      
+      let finalRiskResult = null;
+      if (RiskEngine) {
+        indicators.push({
+          id: 'SIM_NO_CARD',
+          category: 'ATTACHMENT', // Reusing ATTACHMENT conceptually or HARDWARE
+          severity: 'INFO',
+          weight: 0,
+          title: 'No SIM Card Detected',
+          description: 'Device has no active SIM card inserted.',
+          evidence: 'SIM socket empty.',
+          recommendation: 'Insert a SIM card to activate network connection.',
+          source: 'LOCAL_HEURISTIC'
+        });
+        finalRiskResult = RiskEngine.analyze({
+          module: 'sim',
+          indicators,
+          metadata: { hasSim: false }
+        });
+      }
+
       return {
         status,
-        threatScore: 0,
-        threatLevel: 'Low',
+        threatScore: finalRiskResult ? finalRiskResult.score : 0,
+        threatLevel: finalRiskResult ? (finalRiskResult.severity.charAt(0) + finalRiskResult.severity.slice(1).toLowerCase()) : 'Low',
         logs,
-        details: [{
+        details: finalRiskResult ? finalRiskResult.indicators.map(i => ({
+          type: (i.severity === 'HIGH' || i.severity === 'CRITICAL') ? 'danger' : 'warning',
+          title: i.title,
+          message: i.description
+        })) : [{
           type: 'warning',
           title: 'No SIM Card Detected',
           message: 'Device has no active SIM card inserted. Insert and activate a SIM card to configure cellular cyber protection.'
         }],
+        indicators: finalRiskResult ? finalRiskResult.indicators : indicators,
+        verdict: finalRiskResult ? finalRiskResult.verdict : 'UNKNOWN',
+        summary: finalRiskResult ? finalRiskResult.summary : '',
         currentSIM: null,
         boundProfile: this.boundProfile
       };
@@ -186,13 +226,40 @@ class SIMRegistryEngine {
         title: 'SIM Activation & Device Registration Pending',
         message: 'A SIM card has been activated in this pre-installed device. Complete the registration wizard to bind your cryptographic hardware key and enable Anti-SIM Swap defense.'
       });
+      indicators.push({
+        id: 'SIM_UNREGISTERED',
+        category: 'IDENTITY',
+        severity: 'LOW',
+        weight: 15,
+        title: 'SIM Activation & Device Registration Pending',
+        description: 'A SIM card has been activated in this pre-installed device but is not registered.',
+        evidence: 'No bound cryptographic profile found.',
+        recommendation: 'Complete the registration wizard to bind your cryptographic hardware key.',
+        source: 'LOCAL_HEURISTIC'
+      });
+
+      let finalRiskResult = null;
+      if (RiskEngine) {
+        finalRiskResult = RiskEngine.analyze({
+          module: 'sim',
+          indicators,
+          metadata: { hasSim: true, registered: false }
+        });
+      }
 
       return {
         status,
-        threatScore,
-        threatLevel: 'Low',
+        threatScore: finalRiskResult ? finalRiskResult.score : threatScore,
+        threatLevel: finalRiskResult ? (finalRiskResult.severity.charAt(0) + finalRiskResult.severity.slice(1).toLowerCase()) : 'Low',
         logs,
-        details,
+        details: finalRiskResult ? finalRiskResult.indicators.map(i => ({
+          type: (i.severity === 'HIGH' || i.severity === 'CRITICAL') ? 'danger' : 'warning',
+          title: i.title,
+          message: i.description
+        })) : details,
+        indicators: finalRiskResult ? finalRiskResult.indicators : indicators,
+        verdict: finalRiskResult ? finalRiskResult.verdict : 'UNKNOWN',
+        summary: finalRiskResult ? finalRiskResult.summary : '',
         currentSIM: this.currentSIM,
         boundProfile: null
       };
@@ -211,12 +278,28 @@ class SIMRegistryEngine {
       logs.push(`[SUCCESS] Anti-SIM Swap Monitoring: ACTIVE | Token: ${this.boundProfile.securityToken}`);
       logs.push('[INFO] Baseband ciphering: 5G SA AES-256 GCM verified.');
 
+      let finalRiskResult = null;
+      if (RiskEngine) {
+        finalRiskResult = RiskEngine.analyze({
+          module: 'sim',
+          indicators,
+          metadata: { hasSim: true, registered: true, secure: true }
+        });
+      }
+
       return {
         status,
-        threatScore,
-        threatLevel: 'Safe',
+        threatScore: finalRiskResult ? finalRiskResult.score : threatScore,
+        threatLevel: finalRiskResult ? (finalRiskResult.severity.charAt(0) + finalRiskResult.severity.slice(1).toLowerCase()) : 'Safe',
         logs,
-        details: [],
+        details: finalRiskResult ? finalRiskResult.indicators.map(i => ({
+          type: (i.severity === 'HIGH' || i.severity === 'CRITICAL') ? 'danger' : 'warning',
+          title: i.title,
+          message: i.description
+        })) : [],
+        indicators: finalRiskResult ? finalRiskResult.indicators : indicators,
+        verdict: finalRiskResult ? finalRiskResult.verdict : 'UNKNOWN',
+        summary: finalRiskResult ? finalRiskResult.summary : '',
         currentSIM: this.currentSIM,
         boundProfile: this.boundProfile
       };
@@ -243,14 +326,53 @@ class SIMRegistryEngine {
           title: 'Downgrade Attack / IMSI Catcher Vector',
           message: 'Cellular radio was forced down to unencrypted 2G/GSM protocol. Often indicative of a malicious Stingray / IMSI catcher interception.'
         });
+        indicators.push({
+          id: 'SIM_DOWNGRADE_ATTACK',
+          category: 'BEHAVIOR',
+          severity: 'HIGH',
+          weight: 40,
+          title: 'Downgrade Attack / IMSI Catcher Vector',
+          description: 'Cellular radio was forced down to unencrypted 2G/GSM protocol.',
+          evidence: `Network: ${this.currentSIM.networkType}`,
+          recommendation: 'Move to a different location or force 5G/LTE only if possible.',
+          source: 'LOCAL_HEURISTIC'
+        });
+      }
+
+      let finalRiskResult = null;
+      if (RiskEngine) {
+        indicators.push({
+          id: 'SIM_SWAP_HIJACK',
+          category: 'IDENTITY',
+          severity: 'CRITICAL',
+          weight: 95,
+          title: 'CRITICAL: Unauthorized SIM Swap / Port-Out Hijack',
+          description: `An unrecognized SIM card (${this.currentSIM.carrier}, IMSI: ${this.currentSIM.imsi}) was inserted into this registered device without Knox authorization.`,
+          evidence: `Expected IMSI: ${boundSIM ? boundSIM.imsi : 'UNKNOWN'} | Detected: ${this.currentSIM.imsi}`,
+          recommendation: 'Contact your telecom provider immediately. Do not trust incoming SMS 2FA codes.',
+          source: 'LOCAL_HEURISTIC'
+        });
+
+        finalRiskResult = RiskEngine.analyze({
+          module: 'sim',
+          indicators,
+          metadata: { hasSim: true, registered: true, secure: false }
+        });
       }
 
       return {
         status,
-        threatScore,
-        threatLevel: 'Critical',
+        threatScore: finalRiskResult ? finalRiskResult.score : threatScore,
+        threatLevel: finalRiskResult ? (finalRiskResult.severity.charAt(0) + finalRiskResult.severity.slice(1).toLowerCase()) : 'Critical',
         logs,
-        details,
+        details: finalRiskResult ? finalRiskResult.indicators.map(i => ({
+          type: (i.severity === 'HIGH' || i.severity === 'CRITICAL') ? 'danger' : 'warning',
+          title: i.title,
+          message: i.description
+        })) : details,
+        indicators: finalRiskResult ? finalRiskResult.indicators : indicators,
+        verdict: finalRiskResult ? finalRiskResult.verdict : 'UNKNOWN',
+        summary: finalRiskResult ? finalRiskResult.summary : '',
         currentSIM: this.currentSIM,
         boundProfile: this.boundProfile
       };
