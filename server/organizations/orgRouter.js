@@ -413,4 +413,7 @@ router.get('/:organizationId/audit-log', requireOrganizationMembership, requireP
 const secOpsRouter = require('../securityOperations/secOpsRouter');
 router.use('/:organizationId', secOpsRouter);
 
+const integrationRouter = require('../integrations/integrationRouter');
+router.use('/:organizationId/integrations', integrationRouter);
+
 module.exports = router;

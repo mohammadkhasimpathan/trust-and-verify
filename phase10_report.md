@@ -102,4 +102,4 @@ Clean (`npm test` passes smoothly).
 - Incident deduplication currently relies on analyst manual workflow and fingerprint checking.
 
 ## 29. Git commit hash
-<Will be provided after commit>
+79a814c8

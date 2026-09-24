@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  trust-verify:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - SESSION_SECRET=${SESSION_SECRET:-changeme}
+      - INTEGRATION_ENCRYPTION_KEY=${INTEGRATION_ENCRYPTION_KEY:-changeme}
+    volumes:
+      - tv-uploads:/usr/src/app/uploads
+      # Uncomment below to persist sqlite db
+      # - tv-db:/usr/src/app/data
+
+volumes:
+  tv-uploads:
+  # tv-db:

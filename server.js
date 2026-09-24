@@ -505,6 +505,9 @@ app.use('/api/auth', authRouter);
 app.use('/api/sync', syncRouter);
 app.use('/api/organizations', orgRouter);
 
+const apiV1Router = require('./server/api/v1/apiRouter');
+app.use('/api/v1', apiV1Router);
+
 // ─── Start Server ──────────────────────────────────────────────────────────
 if (require.main === module) {
   app.listen(PORT, () => {
