@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trust & Verify // Unified Cyber Defense Suite</title>
+  <!-- SEO tags -->
+  <meta name="description" content="Trust & Verify: An advanced real-time cybersecurity app for detecting email spoofing, malicious attachments, SMS phishing, spam, cyberbullying, and phone scam interceptors.">
+  
+  <!-- PWA configurations -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#00f0ff">
+  <link rel="apple-touch-icon" href="logo.png">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  
+  <!-- Styling -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Cyber matrix grid canvas overlay -->
+  <div class="cyber-grid-overlay"></div>
+
+  <!-- Opening Logo Splash Screen -->
+  <div class="splash-screen" id="splash-screen">
+    <div class="splash-content">
+      <div class="splash-logo-container">
+        <div class="splash-logo">
+          <img src="logo.png" alt="Trust & Verify Logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;">
+        </div>
+        <div class="logo-glow-ring"></div>
+      </div>
+      <h1 class="splash-title">TRUST & VERIFY</h1>
+      <div class="splash-subtitle">NEVER TRUST, ALWAYS VERIFY</div>
+      <div class="splash-loader-bar">
+        <div class="splash-loader-progress" id="splash-progress"></div>
+      </div>
+      <div class="splash-boot-log" id="splash-boot-log">SYSTEM INITIALIZING...</div>
+    </div>
+  </div>
+
+  <!-- Hazard Alarm Flashing Overlay (Triggered by threat score > 80) -->
+  <div class="hazard-alarm-overlay" id="hazard-alarm">
+    <div class="hazard-banner">🚨 CRITICAL THREAT DETECTED 🚨 SIGNALS COMPROMISE 🚨 AUDIT REQUIRED 🚨</div>
+  </div>
+  
+  <!-- App Container Layout -->
+  <div class="app-layout">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-logo">
+          <img src="logo.png" alt="Trust & Verify Logo">
+        </div>
+        <div class="brand-info">
+          <h2>TRUST & VERIFY</h2>
+          <span>NEVER TRUST, ALWAYS VERIFY</span>
+        </div>
+      </div>
+      
+      <div class="sidebar-status">
+        <span class="status-indicator-dot online"></span>
+        <span class="status-text">GATEWAY: www.trustandverify.com</span>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-item active" id="nav-email" onclick="navigateTo('email')">
+          <span class="nav-icon">📧</span>
+          <span class="nav-label">Email Threat Scanner</span>
+        </button>
+        <button class="nav-item" id="nav-sms" onclick="navigateTo('sms')">
+          <span class="nav-icon">💬</span>
+          <span class="nav-label">SMS Security Shield</span>
+        </button>
+        <button class="nav-item" id="nav-caller" onclick="navigateTo('caller')">
+          <span class="nav-icon">📞</span>
+          <span class="nav-label">Phone scam Scanner</span>
+        </button>
+        <button class="nav-item" id="nav-interceptor" onclick="navigateTo('interceptor')">
+          <span class="nav-icon">🤖</span>
+          <span class="nav-label">AI Call Interceptor</span>
+        </button>
+        <button class="nav-item" id="nav-sim" onclick="navigateTo('sim')">
+          <span class="nav-icon">📟</span>
+          <span class="nav-label">SIM & Device Shield</span>
+        </button>
+      </nav>
+
+      <!-- App Install / Sound Controls Footer -->
+      <div class="sidebar-controls">
+        <button class="control-btn" id="btn-install-pwa" style="display: none;" onclick="installPWA()">
+          📥 Install Standalone App
+        </button>
+        
+        <!-- Audio Alarm Diagnostics Toggle -->
+        <div class="audio-toggle-row">
+          <span class="audio-label">SIREN SYNTH SYSTEM:</span>
+          <label class="switch">
+            <input type="checkbox" id="audio-alarm-toggle" checked onchange="toggleAlarmAudio(event)">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="audio-diagnostic-alert" id="audio-init-prompt" onclick="initAudioContext()">
+          🔊 Click to initialize audio engine
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Workspace Area -->
+    <div class="app-main">
+      <!-- OEM Pre-Installed & SIM Status Header Bar -->
+      <div class="oem-header-bar">
+        <div class="oem-bar-left">
+          <div class="oem-badge-chip" id="oem-badge-mode">
+            <span class="oem-pulse-icon">⚡</span>
+            <span>OEM FACTORY PRE-INSTALLED SUITE</span>
+          </div>
+          <div class="oem-sim-status-chip" id="oem-sim-chip" onclick="navigateTo('sim')">
+            <span class="sim-carrier-dot online" id="oem-carrier-dot"></span>
+            <span class="sim-carrier-name" id="oem-carrier-text">SIM: VERIZON 5G (+1 555-234-8901)</span>
+          </div>
+        </div>
+        <div class="oem-bar-right">
+          <span class="binding-pill warning" id="oem-binding-pill">⚠️ REGISTRATION PENDING</span>
+          <button type="button" class="btn-quick-reg" id="btn-header-register" onclick="openSIMRegistrationModal()">
+            <span>🔒 REGISTER & BIND SIM</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="dashboard-grid">
+        
+        <!-- Left Column: Active Modulating Workspace -->
+        <section class="panel control-panel">
+          
+          <!-- MODULE 1: Email Analyzer -->
+          <div class="module-view active" id="view-email">
+            <div class="panel-header">
+              <h2><span>[01]</span> EMAIL SECURITY MATRIX</h2>
+              <div class="cyber-scanner-line"></div>
+            </div>
+            
+            <div class="tab-selectors">
+              <button class="tab-btn active" id="tab-headers-btn" onclick="switchEmailTab('headers')">
+                <span class="btn-num">A</span> Headers Inspector
+              </button>
+              <button class="tab-btn" id="tab-files-btn" onclick="switchEmailTab('files')">
+                <span class="btn-num">B</span> File Scanner
+              </button>
+            </div>
+
+            <!-- Email Headers Sub-tab -->
+            <div class="email-tab-content active" id="email-tab-headers">
+              <p class="tab-desc">Paste raw email headers below to inspect for sender spoofing, SPF/DKIM flags, and route tampering.</p>
+              
+              <div class="input-wrapper">
+                <label for="headers-input">RAW EMAIL HEADERS</label>
+                <textarea id="headers-input" placeholder="Paste your raw RFC 5322 email headers here...&#10;e.g.&#10;From: &quot;PayPal Support&quot; <service-alerts@attacker-domain.com>&#10;To: recipient@userinbox.com..."></textarea>
+              </div>
+              
+              <div class="preset-box">
+                <span class="preset-title">LOAD TEMPLATE PRESETS:</span>
+                <div class="preset-buttons">
+                  <button type="button" class="preset-btn warning" onclick="loadPreset('spoofed_paypal')">Spoofed PayPal</button>
+                  <button type="button" class="preset-btn danger" onclick="loadPreset('spf_fail')">SPF/DKIM Fail</button>
+                  <button type="button" class="preset-btn success" onclick="loadPreset('safe_corporate')">Safe Corporate</button>
+                </div>
+              </div>
+
+              <button type="button" class="action-btn" id="btn-run-headers" onclick="runHeaderAnalysis()">
+                <span>RUN EMAIL HEADER INTERCEPT</span>
+              </button>
+            </div>
+
+            <!-- Email Files Sub-tab -->
+            <div class="email-tab-content" id="email-tab-files">
+              <p class="tab-desc">Upload attachments to analyze for executable extensions, document macros, and ransomware signatures.</p>
+              
+              <div class="dropzone" id="file-dropzone">
+                <input type="file" id="file-input" onchange="handleFileSelect(event)" style="display: none;">
+                <div class="dropzone-content" onclick="document.getElementById('file-input').click()">
+                  <div class="dropzone-icon">📥</div>
+                  <div class="dropzone-text">
+                    <span class="highlight">Click to browse</span> or drag files here
+                  </div>
+                  <div class="dropzone-subtext">Supports attachments (.exe, .zip, .docm, .js, .pdf, etc.)</div>
+                </div>
+              </div>
+
+              <div class="selected-file-card" id="file-info-card" style="display: none;">
+                <div class="file-details">
+                  <span class="file-icon">📄</span>
+                  <div class="file-meta">
+                    <span class="file-name" id="selected-file-name">filename.exe</span>
+                    <span class="file-size" id="selected-file-size">124 KB</span>
+                  </div>
+                </div>
+                <button class="remove-file-btn" onclick="clearSelectedFile()">✕</button>
+              </div>
+
+              <div class="preset-box">
+                <span class="preset-title">TEST WITH SIMULATED PAYLOADS:</span>
+                <div class="preset-buttons">
+                  <button type="button" class="preset-btn danger" onclick="simulateFile('wannacry.exe', '24d00b4295d0393987f250fa0f5af9d95f903fb4e9e19d71d64b66dfab0fcf0c', 'binary')">WannaCry Hash</button>
+                  <button type="button" class="preset-btn danger" onclick="simulateFile('downloader.vbs', '', 'WScript.Shell ShellExecute cmd.exe')">Script Downloader</button>
+                  <button type="button" class="preset-btn success" onclick="simulateFile('report.pdf', 'safe_hash_123', 'Clean document contents')">Safe PDF File</button>
+                </div>
+              </div>
+
+              <button type="button" class="action-btn" id="btn-run-files" onclick="runFileScan()" disabled>
+                <span>RUN HEURISTIC FILE SCAN</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- MODULE 2: SMS Shield -->
+          <div class="module-view" id="view-sms">
+            <div class="panel-header">
+              <h2><span>[01]</span> SMS SECURITY SHIELD</h2>
+              <div class="cyber-scanner-line"></div>
+            </div>
+            
+            <p class="tab-desc">Evaluate text messages for phishing keywords, urgency triggers, credit-card scams, and verbal cyberbullying/harassment.</p>
+            
+            <div class="input-wrapper">
+              <label for="sms-input">RAW SMS CONTENT</label>
+              <textarea id="sms-input" placeholder="Paste the SMS or chat message content here...&#10;e.g.&#10;URGENT: Your account has been suspended! Verify here: http://bit.ly/bank-auth-xx"></textarea>
+            </div>
+
+            <div class="preset-box">
+              <span class="preset-title">TEST SMS PRESETS:</span>
+              <div class="preset-buttons">
+                <button type="button" class="preset-btn danger" onclick="loadSMSPreset('phishing_alert')">Fake Banking URL</button>
+                <button type="button" class="preset-btn danger" onclick="loadSMSPreset('cyberbully')">Bully / Self-Harm Threats</button>
+                <button type="button" class="preset-btn success" onclick="loadSMSPreset('safe_text')">Safe Text Message</button>
+              </div>
+            </div>
+
+            <button type="button" class="action-btn" id="btn-run-sms" onclick="runSMSAnalysis()">
+              <span>DECRYPT & SCAN SMS SIGNATURE</span>
+            </button>
+          </div>
+
+          <!-- MODULE 3: Caller ID Scanner -->
+          <div class="module-view" id="view-caller">
+            <div class="panel-header">
+              <h2><span>[01]</span> CALLER ID & PHONE SCANNER</h2>
+              <div class="cyber-scanner-line"></div>
+            </div>
+
+            <p class="tab-desc">Inspect phone numbers to check against global spoof databases, VoIP provider identifiers, and telemarketing spam reports.</p>
+
+            <div class="input-wrapper">
+              <label for="phone-input">PHONE NUMBER</label>
+              <input type="text" id="phone-input" class="cyber-input" placeholder="+1 (800) 477-1040">
+            </div>
+
+            <div class="preset-box">
+              <span class="preset-title">TEST NUMBER PRESETS:</span>
+              <div class="preset-buttons">
+                <button type="button" class="preset-btn danger" onclick="loadPhonePreset('+18004771040')">Spoofed IRS (+18004771040)</button>
+                <button type="button" class="preset-btn danger" onclick="loadPhonePreset('+18884492265')">Chase Spoof (+18884492265)</button>
+                <button type="button" class="preset-btn success" onclick="loadPhonePreset('+16502530000')">Safe Google HQ Number</button>
+              </div>
+            </div>
+
+            <button type="button" class="action-btn" id="btn-run-phone" onclick="runPhoneScan()">
+              <span>QUERY CALLER BLACKLIST</span>
+            </button>
+
+            <!-- Caller Profile Details Card -->
+            <div class="caller-profile-card" id="caller-profile-card" style="display: none;">
+              <div class="profile-header">
+                <div class="profile-avatar" id="caller-avatar">👤</div>
+                <div class="profile-title">
+                  <h3 id="caller-profile-name">Caller Name</h3>
+                  <span id="caller-profile-type">Caller Type</span>
+                </div>
+                <span class="profile-status-badge safe" id="caller-profile-status">UNKNOWN</span>
+              </div>
+              <div class="profile-details-grid">
+                <div class="detail-item">
+                  <span class="detail-label">NUMBER:</span>
+                  <span class="detail-value" id="caller-detail-number">N/A</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">CARRIER:</span>
+                  <span class="detail-value" id="caller-detail-carrier">N/A</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">LOCATION:</span>
+                  <span class="detail-value" id="caller-detail-location">N/A</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-label">SPAM REPORTS:</span>
+                  <span class="detail-value" id="caller-detail-reports">0</span>
+                </div>
+                <div class="detail-item" style="grid-column: span 2;">
+                  <span class="detail-label">EMAIL ADDRESS:</span>
+                  <span class="detail-value" id="caller-detail-email">N/A</span>
+                </div>
+              </div>
+              <div class="profile-desc-box">
+                <span class="desc-label">SECURITY ANALYSIS & DETAILS:</span>
+                <p id="caller-profile-desc">No security profile compiled yet.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- MODULE 4: AI Call Interceptor -->
+          <div class="module-view" id="view-interceptor">
+            <div class="panel-header">
+              <h2><span>[01]</span> AI CALL INTERCEPTOR SIMULATOR</h2>
+              <div class="cyber-scanner-line"></div>
+            </div>
+
+            <p class="tab-desc">Simulate how an AI Voice Assistant automatically intercepts calls from unknown numbers, probes callers, detects scams, and logs data.</p>
+
+            <div class="preset-box">
+              <span class="preset-title">SELECT SCAM CALL SCENARIO:</span>
+              <div class="preset-buttons" style="flex-direction: column; align-items: stretch; gap: 10px;">
+                <button type="button" class="preset-btn-block active" id="scen-irs" onclick="selectScenario('irs')">
+                  <strong>🚨 IRS Tax Warrant Scam</strong>
+                  <span>Toll-Free Spoofing, arrest threats, demand for direct wire.</span>
+                </button>
+                <button type="button" class="preset-btn-block" id="scen-bank" onclick="selectScenario('bank')">
+                  <strong>💳 Bank Card OTP Bypass Scam</strong>
+                  <span>Impersonating fraud protection to hijack password reset code.</span>
+                </button>
+                <button type="button" class="preset-btn-block" id="scen-family" onclick="selectScenario('family')">
+                  <strong>📞 Grandparent Emergency Fraud</strong>
+                  <span>Social engineering attempting immediate Western Union wire transfer.</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="interceptor-action-area">
+              <button type="button" class="action-btn blink-border" id="btn-initiate-call" onclick="startCallSimulation()">
+                <span>INCOMING CYBER CALL: SIMULATE</span>
+              </button>
+              <button type="button" class="action-btn abort-btn" id="btn-terminate-call" style="display: none;" onclick="terminateCallSimulation()">
+                <span>ABORT TRANSMISSION</span>
+              </button>
+            </div>
+            
+            <!-- Live Call Interface simulator panel -->
+            <div class="live-call-box" id="live-call-box" style="display: none;">
+              <div class="call-box-header">
+                <div class="avatar-ring pulsing">🤖</div>
+                <div class="call-metadata">
+                  <span class="call-title-text" id="interceptor-title">VOICE INTERRUPTOR CONNECTED</span>
+                  <span class="call-number-text" id="interceptor-number">+1 (800) 477-1040</span>
+                </div>
+                <span class="call-timer" id="interceptor-timer">00:00</span>
+              </div>
+              <div class="call-transcript-feed" id="call-transcript-feed">
+                <!-- Dialogue bubbles injected here -->
+              </div>
+            </div>
+          </div>
+
+          <!-- MODULE 5: SIM & Device Shield (Pre-Installed OEM Registration) -->
+          <div class="module-view" id="view-sim">
+            <div class="panel-header">
+              <h2><span>[01]</span> SIM & OEM DEVICE SECURITY MATRIX</h2>
+              <div class="cyber-scanner-line"></div>
+            </div>
+
+            <p class="tab-desc">Cryptographic hardware binding for pre-installed devices. Detects SIM insertion/activation, binds IMSI/ICCID keys to Knox secure enclave, and provides real-time anti-SIM swap defense.</p>
+
+            <!-- SIM Microchip Visual Card -->
+            <div class="sim-hardware-card" id="sim-hardware-card">
+              <div class="sim-chip-visual">
+                <div class="chip-circuit">
+                  <div class="chip-pad p1"></div>
+                  <div class="chip-pad p2"></div>
+                  <div class="chip-pad p3"></div>
+                  <div class="chip-pad p4"></div>
+                  <div class="chip-pad p5"></div>
+                  <div class="chip-pad p6"></div>
+                </div>
+                <div class="chip-brand" id="sim-card-brand">5G SECURE SIM</div>
+              </div>
+              <div class="sim-card-info">
+                <div class="sim-info-row">
+                  <span class="sim-info-label">CARRIER / OPERATOR:</span>
+                  <span class="sim-info-val highlight" id="sim-card-carrier">Verizon 5G Ultra Wideband</span>
+                </div>
+                <div class="sim-info-row">
+                  <span class="sim-info-label">PHONE NUMBER:</span>
+                  <span class="sim-info-val" id="sim-card-phone">+1 (555) 234-8901</span>
+                </div>
+                <div class="sim-info-row">
+                  <span class="sim-info-label">ICCID SERIAL:</span>
+                  <span class="sim-info-val mono" id="sim-card-iccid">89014103211118552091</span>
+                </div>
+                <div class="sim-info-row">
+                  <span class="sim-info-label">IMSI IDENTITY:</span>
+                  <span class="sim-info-val mono" id="sim-card-imsi">311480123456789</span>
+                </div>
+                <div class="sim-info-row">
+                  <span class="sim-info-label">HARDWARE ENCLAVE:</span>
+                  <span class="sim-info-val mono" id="sim-card-enclave">KNOX-SEC-ENCLAVE-994A-FF02</span>
+                </div>
+                <div class="sim-info-row">
+                  <span class="sim-info-label">REGISTRATION STATE:</span>
+                  <span class="sim-status-badge unverified" id="sim-card-status">PENDING REGISTRATION</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- SIM Registered Profile Badge / Certificate if registered -->
+            <div class="sim-binding-details-card" id="sim-binding-details" style="display: none;">
+              <div class="binding-card-header">
+                <span class="binding-title">🛡️ CRYPTOGRAPHIC DEVICE BINDING CERTIFICATE</span>
+                <span class="cert-serial" id="sim-cert-serial">CERT-89AF-4421</span>
+              </div>
+              <div class="binding-grid">
+                <div class="binding-item">
+                  <span class="binding-k">REGISTERED OWNER:</span>
+                  <span class="binding-v" id="sim-bound-owner">Alex Morgan</span>
+                </div>
+                <div class="binding-item">
+                  <span class="binding-k">RECOVERY / ALERT EMAIL:</span>
+                  <span class="binding-v" id="sim-bound-email">alex@trustandverify.com</span>
+                </div>
+                <div class="binding-item">
+                  <span class="binding-k">KNOX SECURITY TOKEN:</span>
+                  <span class="binding-v highlight" id="sim-bound-token">T&V-KNOX-7X9P-M4K2</span>
+                </div>
+                <div class="binding-item">
+                  <span class="binding-k">ANTI-SIM SWAP MONITOR:</span>
+                  <span class="binding-v text-success" id="sim-bound-swap-status">ACTIVE (LOCKDOWN ON MISMATCH)</span>
+                </div>
+              </div>
+              <div class="binding-actions">
+                <button type="button" class="btn-unbind-sim" onclick="handleUnbindSIM()">✕ Unbind / Reset SIM Registration</button>
+              </div>
+            </div>
+
+            <!-- Simulation Controls & Actions -->
+            <div class="preset-box">
+              <span class="preset-title">SIMULATE SIM INSERTION & ATTACK SCENARIOS:</span>
+              <div class="preset-buttons" style="flex-direction: column; gap: 8px;">
+                <button type="button" class="preset-btn-block active" id="sim-btn-verizon" onclick="loadSIMScenario('verizon_5g')">
+                  <strong>🟢 SIM Inserted: Verizon 5G (Fresh Activation)</strong>
+                  <span>Simulates inserting standard SIM card into preinstalled OEM device.</span>
+                </button>
+                <button type="button" class="preset-btn-block" id="sim-btn-att" onclick="loadSIMScenario('att_fiber_sim')">
+                  <strong>📶 eSIM Profile: AT&T Mobility 5G+</strong>
+                  <span>Simulates digital eSIM provisioning and activation.</span>
+                </button>
+                <button type="button" class="preset-btn-block" id="sim-btn-jio" onclick="loadSIMScenario('jio_airtel_5g')">
+                  <strong>🇮🇳 International SIM: Jio True 5G Prime</strong>
+                  <span>Simulates international 5G VoNR roaming activation.</span>
+                </button>
+                <button type="button" class="preset-btn-block danger-border" id="sim-btn-rogue" onclick="loadSIMScenario('rogue_swapped_sim')">
+                  <strong>🚨 ATTACK: Unauthorized SIM Swap / Hijack</strong>
+                  <span>Simulates unauthorized physical SIM replacement to intercept 2FA OTP codes.</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="sim-action-buttons">
+              <button type="button" class="action-btn" id="btn-run-sim-audit" onclick="runSIMSecurityAudit()">
+                <span>RUN TELECOM & SIM INTEGRITY AUDIT</span>
+              </button>
+              <button type="button" class="action-btn secondary-action" id="btn-trigger-register" onclick="openSIMRegistrationModal()">
+                <span>🔒 OPEN SIM REGISTRATION WIZARD</span>
+              </button>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- Right Column: Shared Threat Diagnostic Center -->
+        <section class="panel results-panel">
+          <div class="panel-header">
+            <h2><span>[02]</span> UNIFIED DIAGNOSTIC HUB</h2>
+            <div class="cyber-scanner-line"></div>
+          </div>
+
+          <div class="panel-body results-grid">
+            
+            <!-- Threat Gauge & Badge -->
+            <div class="threat-summary-box">
+              <div class="gauge-wrapper">
+                <svg class="radial-gauge" viewBox="0 0 100 100">
+                  <circle class="gauge-bg" cx="50" cy="50" r="40"></circle>
+                  <circle class="gauge-fill" id="gauge-fill-circle" cx="50" cy="50" r="40" stroke-dasharray="251.2" stroke-dashoffset="251.2"></circle>
+                </svg>
+                <div class="gauge-center">
+                  <span class="gauge-num" id="threat-score">0%</span>
+                  <span class="gauge-label">THREAT SCORE</span>
+                </div>
+              </div>
+
+              <div class="threat-status-details">
+                <span class="threat-title-label">THREAT RATING</span>
+                <div class="threat-badge safe" id="threat-level-badge">SAFE</div>
+                <div class="threat-description-text" id="threat-verdict-summary">
+                  Trust & Verify diagnostics online. Choose a module in the sidebar and execute a threat audit to populate readings.
+                </div>
+              </div>
+            </div>
+
+            <div class="diagnostic-sections">
+              
+              <!-- Console Log Terminal -->
+              <div class="terminal-window">
+                <div class="terminal-header">
+                  <div class="terminal-dots">
+                    <span class="dot red"></span>
+                    <span class="dot yellow"></span>
+                    <span class="dot green"></span>
+                  </div>
+                  <span class="terminal-title">SYSTEM_DIAGNOSTICS://LOG</span>
+                  <span class="terminal-cursor">█</span>
+                </div>
+                <div class="terminal-body" id="terminal-logs">
+                  <div class="log-line system">[INFO] Trust & Verify unified core engine online.</div>
+                  <div class="log-line system">[INFO] Audio klaxon engine configured. Standby for queries...</div>
+                </div>
+              </div>
+
+              <!-- Vulnerability Alerts -->
+              <div class="findings-container">
+                <h3>VULNERABILITY ALERTS & INDICATORS</h3>
+                <div class="findings-list" id="findings-list">
+                  <div class="empty-findings-state" id="empty-findings">
+                    ⚡ Execute scans to query blacklist databases and heuristical vectors.
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Interactive Info Modal (Threat Intel detail) -->
+  <div class="modal-overlay" id="intel-modal">
+    <div class="modal-window">
+      <div class="modal-header">
+        <div class="terminal-dots">
+          <span class="dot red"></span>
+          <span class="dot yellow"></span>
+          <span class="dot green"></span>
+        </div>
+        <span class="modal-title" id="intel-modal-title">PROTOCOL_INTELLIGENCE://</span>
+        <button class="modal-close" onclick="closeIntelligenceModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-badge" id="intel-modal-badge">AUTHENTICATION</div>
+        <h2 class="modal-heading" id="intel-modal-heading">Protocol Information</h2>
+        
+        <p class="modal-desc" id="intel-modal-desc">Detailed specification content goes here...</p>
+        
+        <div class="modal-snippet-box">
+          <div class="snippet-header">TECHNICAL REFERENCES & EXAMPLES:</div>
+          <pre class="snippet-body"><code id="intel-modal-code">Code snippets or records...</code></pre>
+        </div>
+
+        <div class="modal-mitigation-box">
+          <div class="mitigation-header">⚡ DEEP DEFENSE REMEDIATION:</div>
+          <div class="mitigation-body" id="intel-modal-mitigation">Defense recommendation details...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIM Activation & Security Registration Modal -->
+  <div class="modal-overlay" id="sim-registration-modal">
+    <div class="modal-window sim-reg-modal-window">
+      <div class="modal-header">
+        <div class="terminal-dots">
+          <span class="dot red"></span>
+          <span class="dot yellow"></span>
+          <span class="dot green"></span>
+        </div>
+        <span class="modal-title" id="sim-reg-modal-title">OEM_ENCLAVE://SIM_ACTIVATION_REGISTRY</span>
+        <button class="modal-close" onclick="closeSIMRegistrationModal()">✕</button>
+      </div>
+      
+      <div class="modal-body">
+        <!-- Wizard Progress Bar -->
+        <div class="wizard-stepper">
+          <div class="step-node active" id="wizard-step-node-1">
+            <span class="step-num">1</span>
+            <span class="step-name">Telecom Detect</span>
+          </div>
+          <div class="step-line" id="wizard-line-1"></div>
+          <div class="step-node" id="wizard-step-node-2">
+            <span class="step-num">2</span>
+            <span class="step-name">Owner Profile</span>
+          </div>
+          <div class="step-line" id="wizard-line-2"></div>
+          <div class="step-node" id="wizard-step-node-3">
+            <span class="step-num">3</span>
+            <span class="step-name">Security Policy</span>
+          </div>
+          <div class="step-line" id="wizard-line-3"></div>
+          <div class="step-node" id="wizard-step-node-4">
+            <span class="step-num">4</span>
+            <span class="step-name">Enclave Binding</span>
+          </div>
+        </div>
+
+        <!-- STEP 1: SIM Telemetry Detection -->
+        <div class="wizard-pane active" id="wizard-pane-1">
+          <div class="modal-badge">STEP 1: HARDWARE BASEBAND TELEMETRY</div>
+          <h2 class="modal-heading">Active Cellular SIM Detected</h2>
+          <p class="modal-desc">Trust & Verify detected an active SIM card provisioned in this OEM factory device. Confirm baseband parameters below to initiate cryptographic binding.</p>
+
+          <div class="sim-telemetry-box">
+            <div class="sim-grid-row">
+              <span class="sim-lbl">NETWORK CARRIER:</span>
+              <span class="sim-val highlight" id="wiz-carrier">Verizon 5G Ultra Wideband</span>
+            </div>
+            <div class="sim-grid-row">
+              <span class="sim-lbl">PHONE NUMBER:</span>
+              <span class="sim-val" id="wiz-phone">+1 (555) 234-8901</span>
+            </div>
+            <div class="sim-grid-row">
+              <span class="sim-lbl">ICCID CHIP SERIAL:</span>
+              <span class="sim-val mono" id="wiz-iccid">89014103211118552091</span>
+            </div>
+            <div class="sim-grid-row">
+              <span class="sim-lbl">IMSI IDENTITY:</span>
+              <span class="sim-val mono" id="wiz-imsi">311480123456789</span>
+            </div>
+            <div class="sim-grid-row">
+              <span class="sim-lbl">HARDWARE IMEI:</span>
+              <span class="sim-val mono">358924091823901</span>
+            </div>
+            <div class="sim-grid-row">
+              <span class="sim-lbl">RADIO CIPHERING:</span>
+              <span class="sim-val text-success">5G SA AES-256 GCM (ACTIVE)</span>
+            </div>
+          </div>
+
+          <div class="wizard-actions">
+            <button type="button" class="action-btn" onclick="wizardNextStep(2)">
+              <span>CONTINUE TO OWNER PROFILE →</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- STEP 2: Owner & Recovery Identity -->
+        <div class="wizard-pane" id="wizard-pane-2">
+          <div class="modal-badge">STEP 2: OWNER IDENTITY & RECOVERY</div>
+          <h2 class="modal-heading">Security Credential Registration</h2>
+          <p class="modal-desc">Register device ownership and an out-of-band emergency channel to receive instant alerts in the event of an unauthorized SIM-swap attack.</p>
+
+          <div class="form-group-cyber">
+            <label for="reg-owner-name">DEVICE OWNER FULL NAME</label>
+            <input type="text" id="reg-owner-name" class="cyber-input" value="Alex Morgan" placeholder="e.g. Alex Morgan">
+          </div>
+
+          <div class="form-group-cyber">
+            <label for="reg-owner-email">EMERGENCY NOTIFICATION EMAIL (Out-of-band Alert)</label>
+            <input type="email" id="reg-owner-email" class="cyber-input" value="alex.morgan@cyberdefense.corp" placeholder="e.g. alerts@yourcompany.com">
+          </div>
+
+          <div class="form-group-cyber">
+            <label for="reg-emergency-phone">SECONDARY BACKUP PHONE CONTACT</label>
+            <input type="text" id="reg-emergency-phone" class="cyber-input" value="+1 (555) 911-4029" placeholder="+1 (555) 000-0000">
+          </div>
+
+          <div class="form-group-cyber">
+            <label for="reg-asset-tag">OEM ASSET TAG / DEVICE NICKNAME</label>
+            <input type="text" id="reg-asset-tag" class="cyber-input" value="PIXEL9-SEC-OEM-01" placeholder="DEVICE-NICKNAME">
+          </div>
+
+          <div class="wizard-actions dual">
+            <button type="button" class="preset-btn" onclick="wizardNextStep(1)">← BACK</button>
+            <button type="button" class="action-btn" onclick="wizardNextStep(3)">
+              <span>CONFIGURE SECURITY POLICIES →</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- STEP 3: Security Policies & PIN -->
+        <div class="wizard-pane" id="wizard-pane-3">
+          <div class="modal-badge">STEP 3: ANTI-SIM SWAP DEFENSE POLICY</div>
+          <h2 class="modal-heading">Enclave Security & Lockdown Passkey</h2>
+          <p class="modal-desc">Set your 4-digit Knox master PIN and configure real-time telecom defense policies.</p>
+
+          <div class="form-group-cyber">
+            <label for="reg-security-pin">MASTER KNOX PIN (Required to unbind or change SIM)</label>
+            <input type="password" id="reg-security-pin" class="cyber-input" maxlength="6" value="7849" placeholder="4-6 digit PIN">
+          </div>
+
+          <div class="policy-toggle-list">
+            <label class="policy-toggle-item">
+              <input type="checkbox" id="reg-policy-antiswap" checked>
+              <div class="policy-info">
+                <strong>Real-Time Anti-SIM Swap Guard (Recommended)</strong>
+                <span>Instantly locks the device and triggers siren alarms if an unverified SIM card is inserted.</span>
+              </div>
+            </label>
+
+            <label class="policy-toggle-item">
+              <input type="checkbox" id="reg-policy-callscreen" checked>
+              <div class="policy-info">
+                <strong>AI Inbound Call & SMS Screening</strong>
+                <span>Enables automated AI Interceptor protection on this registered phone number.</span>
+              </div>
+            </label>
+
+            <label class="policy-toggle-item">
+              <input type="checkbox" id="reg-policy-roaming">
+              <div class="policy-info">
+                <strong>International Roaming & Port-Out Freeze</strong>
+                <span>Requires Knox PIN verification before roaming on foreign cellular relays.</span>
+              </div>
+            </label>
+          </div>
+
+          <div class="wizard-actions dual">
+            <button type="button" class="preset-btn" onclick="wizardNextStep(2)">← BACK</button>
+            <button type="button" class="action-btn" onclick="submitSIMRegistration()">
+              <span>GENERATE CRYPTOGRAPHIC BINDING ⚡</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- STEP 4: Success / Certificate Issuance -->
+        <div class="wizard-pane" id="wizard-pane-4">
+          <div class="modal-badge text-success">STEP 4: REGISTRATION COMPLETE & SECURED</div>
+          <h2 class="modal-heading">Device & SIM Armored Successfully</h2>
+          <p class="modal-desc">The cryptographic handshake between your SIM baseband and the Knox Secure Enclave is complete.</p>
+
+          <div class="issued-certificate-card">
+            <div class="cert-watermark">ARMORED</div>
+            <div class="cert-header-line">
+              <span>TRUST & VERIFY TELECOM ENCLAVE</span>
+              <span class="cert-badge-valid">VALIDATED</span>
+            </div>
+            <div class="cert-content">
+              <div class="cert-field">
+                <span class="cf-label">SECURITY TOKEN:</span>
+                <span class="cf-value highlight" id="issued-cert-token">T&V-KNOX-88A2-99F1</span>
+              </div>
+              <div class="cert-field">
+                <span class="cf-label">CERTIFICATE SERIAL:</span>
+                <span class="cf-value mono" id="issued-cert-serial">CERT-2026-X992</span>
+              </div>
+              <div class="cert-field">
+                <span class="cf-label">REGISTERED OWNER:</span>
+                <span class="cf-value" id="issued-cert-owner">Alex Morgan</span>
+              </div>
+              <div class="cert-field">
+                <span class="cf-label">BOUND SIM / IMSI:</span>
+                <span class="cf-value mono" id="issued-cert-sim">Verizon 5G (311480123456789)</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="wizard-actions">
+            <button type="button" class="action-btn success-btn" onclick="finishSIMRegistration()">
+              <span>ACTIVATE REAL-TIME DEFENSE SUITE 🛡️</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Utility JavaScript libraries linked -->
+  <script src="utils/simRegistry.js"></script>
+  <script src="app.js"></script>
+  <script src="utils/headerAnalyzer.js"></script>
+  <script src="utils/fileScanner.js"></script>
+  <script src="utils/smsAnalyzer.js"></script>
+  <script src="utils/callScanner.js"></script>
+</body>
+</html>

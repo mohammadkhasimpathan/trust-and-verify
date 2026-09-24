@@ -1,0 +1,16 @@
+{
+  "short_name": "TrustVerify",
+  "name": "Trust & Verify: Unified Cyber Defense Suite",
+  "icons": [
+    {
+      "src": "logo.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#060913",
+  "theme_color": "#00f0ff",
+  "display": "standalone",
+  "orientation": "portrait"
+}
