@@ -31,3 +31,19 @@ Thumbs.db
 
 # Test coverage
 coverage/
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+
+# Temp and build directories
+tmp/
+temp/
+dist/
+build/
+
+# Browser extension dependencies
+browser-extension/node_modules/

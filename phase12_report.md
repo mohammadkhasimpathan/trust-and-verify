@@ -113,4 +113,4 @@ Known limitations
 - Threat correlation operates on standard SQL indexes, a specialized graph db might be needed for scale.
 
 Git commit hash
-Pending
+3216433f7fa451465f49c083bbcae9fe2f6a8769

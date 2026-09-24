@@ -14,8 +14,8 @@ RUN npm ci --omit=dev
 # Copy application files
 COPY . .
 
-# Ensure uploads dir exists and has right permissions
-RUN mkdir -p uploads && chown -R trustuser:trustgroup .
+# Ensure uploads and data dir exist and have right permissions
+RUN mkdir -p uploads data && chown -R trustuser:trustgroup .
 
 USER trustuser
 

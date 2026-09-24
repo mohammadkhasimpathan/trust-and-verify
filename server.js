@@ -510,7 +510,7 @@ app.use('/api/v1', apiV1Router);
 
 // ─── Start Server ──────────────────────────────────────────────────────────
 if (require.main === module) {
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log('==================================================');
     console.log(`  Trust & Verify Security Engine`);
     console.log(`  Environment : ${IS_PRODUCTION ? 'PRODUCTION' : 'DEVELOPMENT'}`);
