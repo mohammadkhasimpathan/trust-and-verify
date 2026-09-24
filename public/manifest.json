@@ -1,16 +1,33 @@
 {
-  "short_name": "TrustVerify",
+  "id": "/",
   "name": "Trust & Verify: Unified Cyber Defense Suite",
+  "short_name": "TrustVerify",
+  "description": "A cybersecurity education and threat-simulation dashboard for email spoofing, SMS phishing, phone scam detection, AI call interception, and SIM security.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#060913",
+  "theme_color": "#00f0ff",
+  "categories": ["education", "security", "utilities"],
   "icons": [
     {
       "src": "logo.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "logo.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "logo.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
     }
-  ],
-  "start_url": "./index.html",
-  "background_color": "#060913",
-  "theme_color": "#00f0ff",
-  "display": "standalone",
-  "orientation": "portrait"
+  ]
 }

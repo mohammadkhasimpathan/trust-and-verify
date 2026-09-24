@@ -3,10 +3,18 @@
  * Core Telecom & SIM Security Registry Engine for Trust & Verify.
  * Manages OEM Pre-Installed device states, SIM insertion/activation events,
  * cryptographic SIM binding, anti-SIM swap attack detection, and telecom telemetry.
+ *
+ * SECURITY DISCLAIMER:
+ * This module is a CLIENT-SIDE SIMULATION for cybersecurity education purposes.
+ * It uses browser localStorage, which is NOT a secure hardware enclave.
+ * This code does NOT have real Knox/StrongBox access, does NOT interact with
+ * actual SIM hardware, and does NOT provide real telecom security guarantees.
+ * All threat verdicts and security status indicators are simulated heuristics.
  */
 
 const STORAGE_KEY_SIM_REGISTRATION = 'trust_verify_sim_reg';
 const STORAGE_KEY_OEM_CONFIG = 'trust_verify_oem_config';
+const STORAGE_KEY_PIN_HASH = 'trust_verify_pin_hash';
 
 // Default mock hardware specs
 const DEFAULT_HARDWARE_IMEI = '358924091823901';
@@ -250,25 +258,77 @@ class SIMRegistryEngine {
   }
 
   /**
-   * Register and bind the active SIM to the device
+   * Generate a cryptographically secure random hex string of the given byte length.
+   * Uses crypto.getRandomValues() instead of Math.random().
    */
-  registerSIM(formData) {
+  _secureRandomHex(byteLength) {
+    const bytes = new Uint8Array(byteLength);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('')
+      .toUpperCase();
+  }
+
+  /**
+   * Derives a salted SHA-256 hash of the given PIN using Web Crypto.
+   * Returns a Promise<{ salt: string, hash: string }>.
+   * The raw PIN is never stored.
+   */
+  async _hashPIN(pin) {
+    const salt = this._secureRandomHex(16); // 128-bit random salt
+    const encoder = new TextEncoder();
+    const data = encoder.encode(salt + pin);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+    return { salt, hash: hashHex };
+  }
+
+  /**
+   * Verifies a raw PIN against the stored { salt, hash } record.
+   * Returns a Promise<boolean>.
+   */
+  async _verifyPIN(pin, storedSalt, storedHash) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(storedSalt + pin);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+    return hashHex === storedHash;
+  }
+
+  /**
+   * Register and bind the active SIM to the device.
+   * Returns a Promise so that PIN hashing (async) is handled correctly.
+   */
+  async registerSIM(formData) {
     if (!this.currentSIM) {
       throw new Error('No active SIM card available to register.');
     }
 
+    const rawPin = formData.securityPin || '1234';
+    // Hash the PIN — never store plaintext
+    const pinRecord = await this._hashPIN(rawPin);
+
     const registrationTimestamp = new Date().toISOString();
-    const tokenPart1 = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const tokenPart2 = Math.random().toString(36).substring(2, 6).toUpperCase();
-    const securityToken = `T&V-KNOX-${tokenPart1}-${tokenPart2}`;
-    const certSerial = `CERT-${Date.now().toString(16).toUpperCase()}-${Math.floor(Math.random() * 9999)}`;
+
+    // Cryptographically secure token generation
+    const tokenHex = this._secureRandomHex(4);
+    const tokenHex2 = this._secureRandomHex(4);
+    const securityToken = `T&V-KNOX-${tokenHex}-${tokenHex2}`;
+
+    const certHex = this._secureRandomHex(4);
+    const certSerial = `CERT-${Date.now().toString(16).toUpperCase()}-${certHex}`;
 
     const newProfile = {
       ownerName: formData.ownerName || 'Authorized Device Owner',
       ownerEmail: formData.ownerEmail || 'user@trustandverify.com',
       emergencyPhone: formData.emergencyPhone || '+1 (555) 911-0000',
       deviceAssetTag: formData.deviceAssetTag || 'OEM-DEFENSE-PIXEL-9',
-      securityPin: formData.securityPin || '1234',
+      // PIN is stored as { salt, hash } — NOT plaintext
+      pinSalt: pinRecord.salt,
+      pinHash: pinRecord.hash,
       antiSimSwapEnabled: formData.antiSimSwapEnabled !== false,
       autoCallScreening: formData.autoCallScreening !== false,
       roamingLockEnabled: formData.roamingLockEnabled || false,
@@ -291,10 +351,26 @@ class SIMRegistryEngine {
   }
 
   /**
-   * Unbind / Reset registration
+   * Unbind / Reset registration.
+   * Accepts a raw PIN and compares it against the stored hash.
+   * Returns a Promise<{ success: boolean, error?: string, evaluation? }>
    */
-  unbindRegistration(providedPin) {
-    if (this.boundProfile && this.boundProfile.securityPin) {
+  async unbindRegistration(providedPin) {
+    if (this.boundProfile && this.boundProfile.pinHash) {
+      // Verify against stored hash — never compare plaintexts
+      if (!providedPin) {
+        return { success: false, error: 'PIN is required to unbind SIM registration.' };
+      }
+      const isValid = await this._verifyPIN(
+        providedPin,
+        this.boundProfile.pinSalt,
+        this.boundProfile.pinHash
+      );
+      if (!isValid) {
+        return { success: false, error: 'Incorrect Security PIN. Cannot unbind SIM registration.' };
+      }
+    } else if (this.boundProfile && this.boundProfile.securityPin) {
+      // Legacy plaintext PIN (profiles registered before Phase 0) — migrate on next registration
       if (providedPin && providedPin !== this.boundProfile.securityPin) {
         return { success: false, error: 'Incorrect Security PIN. Cannot unbind SIM registration.' };
       }
@@ -302,6 +378,7 @@ class SIMRegistryEngine {
 
     this.boundProfile = null;
     localStorage.removeItem(STORAGE_KEY_SIM_REGISTRATION);
+    localStorage.removeItem(STORAGE_KEY_PIN_HASH);
     return { success: true, evaluation: this.evaluateSIMSecurity() };
   }
 }

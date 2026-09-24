@@ -208,7 +208,8 @@ function stopSirenAlarm() {
   }
   
   isSirenPlaying = false;
-  document.getElementById('hazard-alarm').classList.remove('active');
+  const hazardAlarm = document.getElementById('hazard-alarm');
+  if (hazardAlarm) hazardAlarm.classList.remove('active');
 }
 
 function toggleAlarmAudio(event) {
@@ -255,32 +256,55 @@ function switchEmailTab(tabId) {
 }
 
 // 4. Shared Diagnostics UI Updates
-const terminalLogs = document.getElementById('terminal-logs');
-const findingsList = document.getElementById('findings-list');
-const emptyFindings = document.getElementById('empty-findings');
-const threatScoreText = document.getElementById('threat-score');
-const threatLevelBadge = document.getElementById('threat-level-badge');
-const threatVerdictSummary = document.getElementById('threat-verdict-summary');
-const gaugeFillCircle = document.getElementById('gauge-fill-circle');
+// NOTE: DOM element references are resolved lazily so they are always available
+// after DOMContentLoaded, regardless of script-load order.
+let _terminalLogs = null;
+let _findingsList = null;
+let _emptyFindings = null;
+let _threatScoreText = null;
+let _threatLevelBadge = null;
+let _threatVerdictSummary = null;
+let _gaugeFillCircle = null;
+
+function getEl(id) {
+  return document.getElementById(id);
+}
+
+function ensureDOMRefs() {
+  if (!_terminalLogs) {
+    _terminalLogs = getEl('terminal-logs');
+    _findingsList = getEl('findings-list');
+    _emptyFindings = getEl('empty-findings');
+    _threatScoreText = getEl('threat-score');
+    _threatLevelBadge = getEl('threat-level-badge');
+    _threatVerdictSummary = getEl('threat-verdict-summary');
+    _gaugeFillCircle = getEl('gauge-fill-circle');
+  }
+}
 
 function addLogLine(text, type = 'system') {
+  ensureDOMRefs();
+  if (!_terminalLogs) return;
   const line = document.createElement('div');
   line.className = `log-line ${type}`;
   line.textContent = text;
-  terminalLogs.appendChild(line);
-  terminalLogs.scrollTop = terminalLogs.scrollHeight;
+  _terminalLogs.appendChild(line);
+  _terminalLogs.scrollTop = _terminalLogs.scrollHeight;
 }
 
 function clearTerminal() {
-  terminalLogs.innerHTML = '';
+  ensureDOMRefs();
+  if (_terminalLogs) _terminalLogs.innerHTML = '';
 }
 
 function updateThreatGauge(score, rating) {
-  threatScoreText.textContent = `${score}%`;
+  ensureDOMRefs();
+  if (!_threatScoreText) return;
+  _threatScoreText.textContent = `${score}%`;
   
   // Circumference calculation for r=40 is 251.2
   const offset = 251.2 - (score / 100) * 251.2;
-  gaugeFillCircle.style.strokeDashoffset = offset;
+  _gaugeFillCircle.style.strokeDashoffset = offset;
   
   let color = 'var(--accent-cyan)';
   let ratingClass = 'low';
@@ -290,7 +314,8 @@ function updateThreatGauge(score, rating) {
     ratingClass = 'critical';
     
     // Trigger visual hazard alert overlay & sound siren
-    document.getElementById('hazard-alarm').classList.add('active');
+    const hazardAlarm = getEl('hazard-alarm');
+    if (hazardAlarm) hazardAlarm.classList.add('active');
     playSirenAlarm();
   } else {
     // Stop siren if score drops below 80
@@ -311,21 +336,25 @@ function updateThreatGauge(score, rating) {
     }
   }
   
-  gaugeFillCircle.style.stroke = color;
-  threatLevelBadge.className = `threat-badge ${ratingClass}`;
-  threatLevelBadge.textContent = rating.toUpperCase();
+  _gaugeFillCircle.style.stroke = color;
+  _threatLevelBadge.className = `threat-badge ${ratingClass}`;
+  _threatLevelBadge.textContent = rating.toUpperCase();
 }
 
 function populateFindings(findings) {
-  findingsList.innerHTML = '';
+  ensureDOMRefs();
+  if (!_findingsList) return;
+  _findingsList.innerHTML = '';
   
   if (!findings || findings.length === 0) {
-    emptyFindings.style.display = 'block';
-    findingsList.appendChild(emptyFindings);
+    if (_emptyFindings) {
+      _emptyFindings.style.display = 'block';
+      _findingsList.appendChild(_emptyFindings);
+    }
     return;
   }
   
-  emptyFindings.style.display = 'none';
+  if (_emptyFindings) _emptyFindings.style.display = 'none';
   
   findings.forEach(find => {
     const card = document.createElement('div');
@@ -341,7 +370,7 @@ function populateFindings(findings) {
     
     card.appendChild(title);
     card.appendChild(desc);
-    findingsList.appendChild(card);
+    _findingsList.appendChild(card);
   });
 }
 
@@ -420,7 +449,7 @@ async function runHeaderAnalysis() {
       } else if (results.score >= 25) {
         verdict = 'MEDIUM WARNING: Authentication records are missing or unconfigured.';
       }
-      threatVerdictSummary.textContent = verdict;
+      if (_threatVerdictSummary) _threatVerdictSummary.textContent = verdict;
       
       scanBtn.removeAttribute('disabled');
       addLogLine(`[SUCCESS] Email header analysis complete. Threat Score: ${results.score}%`, 'success');
@@ -510,7 +539,7 @@ async function runFileScan() {
     } else if (results.score >= 25) {
       verdict = 'MEDIUM WARNING: Embedded archives or macros present risk.';
     }
-    threatVerdictSummary.textContent = verdict;
+    if (_threatVerdictSummary) _threatVerdictSummary.textContent = verdict;
     scanBtn.removeAttribute('disabled');
     addLogLine(`[SUCCESS] File check complete. Threat Score: ${results.score}%`, 'success');
   };
@@ -594,7 +623,7 @@ function runSMSAnalysis() {
       } else if (results.score >= 25) {
         verdict = 'MEDIUM WARNING: Obfuscated links or brand references found.';
       }
-      threatVerdictSummary.textContent = verdict;
+      if (_threatVerdictSummary) _threatVerdictSummary.textContent = verdict;
 
       scanBtn.removeAttribute('disabled');
       addLogLine(`[SUCCESS] SMS check complete. Rating: ${results.threatLevel}`, 'success');
@@ -651,7 +680,7 @@ function runPhoneScan() {
       } else if (results.score >= 25) {
         verdict = 'MEDIUM WARNING: Malformed length or routing details.';
       }
-      threatVerdictSummary.textContent = verdict;
+      if (_threatVerdictSummary) _threatVerdictSummary.textContent = verdict;
 
       // Populate and display Caller Profile Details Card
       if (results.callerProfile) {
@@ -822,7 +851,7 @@ function completeCallSimulation() {
   }
 
   populateFindings(findings);
-  threatVerdictSummary.textContent = `Call Intercepted. AI Assistant successfully blocked scam execution. Final threat score: ${callThreatScore}%.`;
+  if (_threatVerdictSummary) _threatVerdictSummary.textContent = `Call Intercepted. AI Assistant successfully blocked scam execution. Final threat score: ${callThreatScore}%.`;
 
   // Toggle buttons
   document.getElementById('btn-initiate-call').style.display = 'block';
@@ -957,13 +986,13 @@ function applySIMEvaluation(res, logToTerminal = true) {
   populateFindings(res.details);
 
   if (status === 'SIM_SWAP_ATTACK') {
-    threatVerdictSummary.textContent = 'CRITICAL TELECOM ALARM: Unauthorized SIM swap detected! IMSI/ICCID mismatch with Knox secure enclave.';
+    if (_threatVerdictSummary) _threatVerdictSummary.textContent = 'CRITICAL TELECOM ALARM: Unauthorized SIM swap detected! IMSI/ICCID mismatch with Knox secure enclave.';
   } else if (status === 'REGISTERED_SECURE') {
-    threatVerdictSummary.textContent = `SIM & Baseband Verified. Device cryptographically registered to ${boundProfile.ownerName}. Anti-SIM-Swap Active.`;
+    if (_threatVerdictSummary) _threatVerdictSummary.textContent = `SIM & Baseband Verified. Device cryptographically registered to ${boundProfile.ownerName}. Anti-SIM-Swap Active.`;
   } else if (status === 'UNREGISTERED') {
-    threatVerdictSummary.textContent = 'Active SIM detected in pre-installed OEM device. Complete registration wizard to activate Anti-SIM-Swap defense.';
+    if (_threatVerdictSummary) _threatVerdictSummary.textContent = 'Active SIM detected in pre-installed OEM device. Complete registration wizard to activate Anti-SIM-Swap defense.';
   } else {
-    threatVerdictSummary.textContent = 'No active SIM detected in cellular socket.';
+    if (_threatVerdictSummary) _threatVerdictSummary.textContent = 'No active SIM detected in cellular socket.';
   }
 
   if (logToTerminal && res.logs) {
@@ -1073,7 +1102,7 @@ function wizardNextStep(targetStep) {
   playTone(440 + targetStep * 50, 0.08, 0.03);
 }
 
-function submitSIMRegistration() {
+async function submitSIMRegistration() {
   if (!window.simRegistryEngine) return;
 
   const ownerName = document.getElementById('reg-owner-name').value.trim() || 'Authorized Device Owner';
@@ -1085,27 +1114,31 @@ function submitSIMRegistration() {
   const autoCallScreening = document.getElementById('reg-policy-callscreen').checked;
   const roamingLockEnabled = document.getElementById('reg-policy-roaming').checked;
 
-  const result = window.simRegistryEngine.registerSIM({
-    ownerName,
-    ownerEmail,
-    emergencyPhone,
-    deviceAssetTag,
-    securityPin,
-    antiSimSwapEnabled,
-    autoCallScreening,
-    roamingLockEnabled
-  });
+  try {
+    const result = await window.simRegistryEngine.registerSIM({
+      ownerName,
+      ownerEmail,
+      emergencyPhone,
+      deviceAssetTag,
+      securityPin,
+      antiSimSwapEnabled,
+      autoCallScreening,
+      roamingLockEnabled
+    });
 
-  if (result.success) {
-    const p = result.profile;
-    document.getElementById('issued-cert-token').textContent = p.securityToken;
-    document.getElementById('issued-cert-serial').textContent = p.certSerial;
-    document.getElementById('issued-cert-owner').textContent = p.ownerName;
-    document.getElementById('issued-cert-sim').textContent = `${p.simDetails.carrier} (${p.simDetails.imsi})`;
+    if (result.success) {
+      const p = result.profile;
+      document.getElementById('issued-cert-token').textContent = p.securityToken;
+      document.getElementById('issued-cert-serial').textContent = p.certSerial;
+      document.getElementById('issued-cert-owner').textContent = p.ownerName;
+      document.getElementById('issued-cert-sim').textContent = `${p.simDetails.carrier} (${p.simDetails.imsi})`;
 
-    wizardNextStep(4);
-    playStartupChime();
-    addLogLine(`[SUCCESS] Cryptographic SIM Binding complete! Token: ${p.securityToken}`, 'success');
+      wizardNextStep(4);
+      playStartupChime();
+      addLogLine(`[SUCCESS] Cryptographic SIM Binding complete! Token: ${p.securityToken}`, 'success');
+    }
+  } catch (err) {
+    addLogLine(`[ERROR] SIM registration failed: ${err.message}`, 'critical');
   }
 }
 
@@ -1116,18 +1149,26 @@ function finishSIMRegistration() {
   playTone(880, 0.2, 0.05);
 }
 
-function handleUnbindSIM() {
+async function handleUnbindSIM() {
   if (!window.simRegistryEngine) return;
+  // Use a dialog input; prompt() is a native blocking call.
+  // Phase 1 UX task: replace with a custom modal dialog.
   const pin = prompt('Enter your 4-digit Master Knox PIN to unbind this SIM registration:');
-  if (pin === null) return; // User cancelled
+  if (pin === null || pin.trim() === '') return; // User cancelled or entered nothing
 
-  const result = window.simRegistryEngine.unbindRegistration(pin);
-  if (result.success) {
-    applySIMEvaluation(result.evaluation, true);
-    addLogLine('[INFO] Device SIM registration unbound. Device returned to Unactivated Pre-Installed state.', 'warn');
-    alert('SIM registration successfully cleared. Device is now in unverified pre-installed state.');
-  } else {
-    alert(result.error || 'Failed to unbind SIM.');
+  try {
+    const result = await window.simRegistryEngine.unbindRegistration(pin.trim());
+    if (result.success) {
+      applySIMEvaluation(result.evaluation, true);
+      addLogLine('[INFO] Device SIM registration unbound. Device returned to Unactivated Pre-Installed state.', 'warn');
+      // Phase 1 UX task: replace alert() with a custom toast/modal notification.
+      alert('SIM registration successfully cleared. Device is now in unverified pre-installed state.');
+    } else {
+      alert(result.error || 'Failed to unbind SIM.');
+    }
+  } catch (err) {
+    addLogLine(`[ERROR] Unbind failed: ${err.message}`, 'critical');
+    alert('An unexpected error occurred during SIM unbind.');
   }
 }
 
