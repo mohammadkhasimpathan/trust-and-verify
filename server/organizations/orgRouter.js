@@ -416,4 +416,7 @@ router.use('/:organizationId', secOpsRouter);
 const integrationRouter = require('../integrations/integrationRouter');
 router.use('/:organizationId/integrations', integrationRouter);
 
+const aiRouter = require('../ai/aiRouter');
+router.use('/:organizationId/ai', aiRouter);
+
 module.exports = router;

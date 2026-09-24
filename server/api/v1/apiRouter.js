@@ -45,4 +45,48 @@ router.get('/incidents', requireScope('security.read'), (req, res) => {
   });
 });
 
+// Phase 12 AI Endpoints
+const { explainRisk } = require('../../ai/riskExplainer');
+const { analyzeIncident } = require('../../ai/incidentAnalyst');
+const { assistInvestigation } = require('../../ai/investigationAssistant');
+const { generateHuntingQueries } = require('../../ai/threatHunter');
+const { summarizeReport } = require('../../ai/reportAssistant');
+const { getAiSettings } = require('../../ai/aiSecurity');
+const providerRegistry = require('../../ai/providerRegistry');
+
+router.get('/ai/status', requireScope('ai.read'), async (req, res) => {
+  try {
+    const settings = getAiSettings(req.organizationId);
+    if (!settings.enabled) return res.json({ status: 'DISABLED' });
+    const provider = providerRegistry.getProvider(settings.provider);
+    const health = await provider.healthCheck();
+    res.json(health);
+  } catch(err) { res.status(500).json({ error: 'Internal error' }); }
+});
+
+router.post('/ai/explain-risk', requireScope('ai.use'), async (req, res) => {
+  const result = await explainRisk(req.organizationId, req.serviceAccountId || 'API_KEY', req.body.riskResult);
+  res.json(result);
+});
+
+router.post('/ai/analyze-incident', requireScope('ai.incidents.analyze'), async (req, res) => {
+  const result = await analyzeIncident(req.organizationId, req.serviceAccountId || 'API_KEY', req.body.incidentData);
+  res.json(result);
+});
+
+router.post('/ai/assist-investigation', requireScope('ai.investigations.assist'), async (req, res) => {
+  const result = await assistInvestigation(req.organizationId, req.serviceAccountId || 'API_KEY', req.body.investigationData);
+  res.json(result);
+});
+
+router.post('/ai/hunt', requireScope('ai.threat_hunting.use'), async (req, res) => {
+  const result = await generateHuntingQueries(req.organizationId, req.serviceAccountId || 'API_KEY', req.body.threatContext);
+  res.json(result);
+});
+
+router.post('/ai/summarize', requireScope('ai.reports.generate'), async (req, res) => {
+  const result = await summarizeReport(req.organizationId, req.serviceAccountId || 'API_KEY', req.body.reportData);
+  res.json(result);
+});
+
 module.exports = router;

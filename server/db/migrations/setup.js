@@ -465,6 +465,34 @@ function runMigrations() {
       FOREIGN KEY(service_account_id) REFERENCES service_accounts(id) ON DELETE CASCADE,
       FOREIGN KEY(created_by) REFERENCES users(id) ON DELETE SET NULL
     );
+    CREATE TABLE IF NOT EXISTS ai_settings (
+      organization_id TEXT PRIMARY KEY,
+      enabled BOOLEAN DEFAULT 0,
+      provider TEXT DEFAULT 'LOCAL',
+      model TEXT,
+      data_sharing_policy TEXT,
+      updated_by TEXT,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+      FOREIGN KEY(updated_by) REFERENCES users(id) ON DELETE SET NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS ai_audit_logs (
+      id TEXT PRIMARY KEY,
+      organization_id TEXT NOT NULL,
+      user_id TEXT,
+      provider TEXT,
+      model TEXT,
+      operation TEXT NOT NULL,
+      input_fingerprint TEXT,
+      token_usage INTEGER,
+      redaction_status TEXT,
+      status TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      duration_ms INTEGER,
+      FOREIGN KEY(organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
+      FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
+    );
 
   `);
 }
