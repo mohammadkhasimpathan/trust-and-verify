@@ -33,6 +33,17 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
+// ─── Proxy Trust ───────────────────────────────────────────────────────────
+// Render places exactly one reverse-proxy hop in front of the container.
+// Setting trust proxy to 1 tells Express to trust only the immediately
+// adjacent upstream (Render's load balancer), so req.ip is derived from
+// the rightmost X-Forwarded-For entry added by Render — not from any
+// client-supplied header further left in the chain.
+// This is the narrowest safe value: it allows express-rate-limit to
+// identify real client IPs correctly without blindly trusting arbitrary
+// client-injected proxy headers.
+app.set('trust proxy', 1);
+
 // ─── Security Headers ──────────────────────────────────────────────────────
 // helmet is applied before any other middleware so all responses get headers.
 // CSP is intentionally permissive to avoid breaking the existing app's inline
