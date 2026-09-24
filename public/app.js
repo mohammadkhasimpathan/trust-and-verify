@@ -1683,6 +1683,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // Check URL params for verification/reset tokens
+  const urlParams = new URLSearchParams(window.location.search);
+  const verifyToken = urlParams.get('token');
+  if (window.location.pathname === '/verify-email' && verifyToken) {
+    setTimeout(() => {
+      navigateTo('account');
+      if (window.accountUi) window.accountUi.verifyEmailToken(verifyToken);
+    }, 1000);
+  } else if (window.location.pathname === '/reset-password' && verifyToken) {
+    setTimeout(() => {
+      navigateTo('account');
+      if (window.accountUi) window.accountUi.showResetPassword(verifyToken);
+    }, 1000);
+  }
+
   // Start sequence
   setTimeout(runBootSequence, 200);
 }

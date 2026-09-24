@@ -9,7 +9,6 @@ class SyncEngine {
   _getOrCreateDeviceId() {
     let id = localStorage.getItem('tv_device_id');
     if (!id) {
-      // Basic random UUID v4 logic for browser without requiring an external lib
       id = crypto.randomUUID ? crypto.randomUUID() : 'dev_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
       localStorage.setItem('tv_device_id', id);
     }
@@ -28,14 +27,19 @@ class SyncEngine {
     return { authenticated: false };
   }
 
-  async login(email, password) {
+  async login(email, password, totp) {
     const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password, totp })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Login failed.');
+    if (!res.ok) {
+      if (data.error === 'MFA_REQUIRED') {
+        throw new Error('MFA_REQUIRED');
+      }
+      throw new Error(data.error || 'Login failed.');
+    }
     return data;
   }
 
@@ -63,6 +67,103 @@ class SyncEngine {
     if (!res.ok) throw new Error('Failed to delete account.');
   }
 
+  async forgotPassword(email) {
+    const res = await fetch('/api/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to send reset email.');
+    return data;
+  }
+
+  async resetPassword(token, newPassword) {
+    const res = await fetch('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, newPassword })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to reset password.');
+    return data;
+  }
+  
+  async changePassword(currentPassword, newPassword) {
+    const res = await fetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to change password.');
+    return data;
+  }
+
+  async verifyEmailToken(token) {
+    const res = await fetch('/api/auth/verify-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Verification failed.');
+    return data;
+  }
+
+  async mfaSetup() {
+    const res = await fetch('/api/auth/mfa/setup', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to setup MFA.');
+    return data; // { secret, otpauth }
+  }
+
+  async mfaVerify(totp) {
+    const res = await fetch('/api/auth/mfa/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ totp })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to verify MFA.');
+    return data; // { backupCodes }
+  }
+
+  async mfaDisable(password, totp) {
+    const res = await fetch('/api/auth/mfa/disable', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password, totp })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to disable MFA.');
+    return data;
+  }
+
+  async getSessions() {
+    const res = await fetch('/api/auth/sessions');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load sessions.');
+    return data.sessions;
+  }
+
+  async revokeSession(id) {
+    const res = await fetch(`/api/auth/sessions/${id}/revoke`, { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to revoke session.');
+  }
+
+  async revokeOtherSessions() {
+    const res = await fetch('/api/auth/sessions/revoke-others', { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to revoke other sessions.');
+  }
+
+  async getSecurityEvents() {
+    const res = await fetch('/api/auth/security-events');
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to load security events.');
+    return data.events;
+  }
+
   async syncNow() {
     if (this.syncing) return;
     this.syncing = true;
@@ -75,10 +176,7 @@ class SyncEngine {
       
       if (window.addLogLine) window.addLogLine('[SYNC] Starting synchronization...', 'system');
       
-      // Push local changes
       await this.pushLocalChanges();
-      
-      // Pull server changes
       await this.pullServerChanges();
       
       if (window.addLogLine) window.addLogLine('[SYNC] Synchronization complete.', 'success');
@@ -91,46 +189,24 @@ class SyncEngine {
   }
 
   async pushLocalChanges() {
-    // Collect data to push. In a real app we'd have a syncQueue.
-    // For Phase 7, we'll push all local data. The server ignores duplicates.
-    
     if (!window.historyStore || !window.progressManager) return;
-    
     const queue = [];
     
-    // Scans
+    // Quick collect
     const scans = await window.historyStore.getAllScans();
     scans.forEach(s => queue.push({ id: 'push_s_'+s.id, entityType: 'scans', entityId: s.id, operation: 'CREATE', payload: s }));
-    
-    // Training Progress
     const tp = await window.progressManager.getAllProgress();
     tp.forEach(p => queue.push({ id: 'push_tp_'+p.id, entityType: 'trainingProgress', entityId: p.id, operation: 'CREATE', payload: p }));
     
-    // Quiz Attempts
-    const qstore = await window.progressManager._getDbStore('quizAttempts', 'readonly');
-    const qa = await new Promise(r => { const req = qstore.getAll(); req.onsuccess = () => r(req.result); });
-    qa.forEach(a => queue.push({ id: 'push_qa_'+a.id, entityType: 'quizAttempts', entityId: a.id, operation: 'CREATE', payload: a }));
+    for (let storeName of ['quizAttempts', 'challengeAttempts', 'badges', 'certificates']) {
+      const store = await window.progressManager._getDbStore(storeName, 'readonly');
+      const items = await new Promise(r => { const req = store.getAll(); req.onsuccess = () => r(req.result); });
+      items.forEach(i => queue.push({ id: `push_${storeName}_${i.id}`, entityType: storeName, entityId: i.id, operation: 'CREATE', payload: i }));
+    }
     
-    // Challenge Attempts
-    const cstore = await window.progressManager._getDbStore('challengeAttempts', 'readonly');
-    const ca = await new Promise(r => { const req = cstore.getAll(); req.onsuccess = () => r(req.result); });
-    ca.forEach(a => queue.push({ id: 'push_ca_'+a.id, entityType: 'challengeAttempts', entityId: a.id, operation: 'CREATE', payload: a }));
-    
-    // Badges
-    const bstore = await window.progressManager._getDbStore('badges', 'readonly');
-    const ba = await new Promise(r => { const req = bstore.getAll(); req.onsuccess = () => r(req.result); });
-    ba.forEach(b => queue.push({ id: 'push_b_'+b.id, entityType: 'badges', entityId: b.id, operation: 'CREATE', payload: b }));
-    
-    // Certificates
-    const certstore = await window.progressManager._getDbStore('certificates', 'readonly');
-    const cert = await new Promise(r => { const req = certstore.getAll(); req.onsuccess = () => r(req.result); });
-    cert.forEach(c => queue.push({ id: 'push_cert_'+c.id, entityType: 'certificates', entityId: c.id, operation: 'CREATE', payload: c }));
-    
-    // Training Events
     const events = await window.progressManager.getEvents();
     events.forEach(e => queue.push({ id: 'push_evt_'+e.eventId, entityType: 'trainingEvents', entityId: e.eventId, operation: 'CREATE', payload: e }));
 
-    // Send chunks of 500
     for (let i = 0; i < queue.length; i += 500) {
       const chunk = queue.slice(i, i + 500);
       const res = await fetch('/api/sync/push', {
@@ -152,21 +228,18 @@ class SyncEngine {
     if (!res.ok) throw new Error('Pull request failed.');
     const { data } = await res.json();
     
-    // Merge into local DB
     if (window.historyStore && window.progressManager) {
       if (data.scans) {
         for (const s of data.scans) {
-          const payload = {
+          await window.historyStore.saveScan({
             id: s.id, module: s.module, score: s.score, severity: s.severity, verdict: s.verdict,
             summary: s.summary, indicators: JSON.parse(s.indicators), recommendations: JSON.parse(s.recommendations),
             metadata: JSON.parse(s.metadata), fingerprint: s.fingerprint, engineVersion: s.engine_version,
             timestamp: s.created_at
-          };
-          await window.historyStore.saveScan(payload);
+          });
         }
       }
       
-      // Update other stores similarly
       if (data.badges) {
         const bstore = await window.progressManager._getDbStore('badges', 'readwrite');
         for (const b of data.badges) {
@@ -183,8 +256,6 @@ class SyncEngine {
           });
         }
       }
-      
-      // Note: A full implementation would apply conflict resolution. For this phase, server data is pulled and blindly overwrites local.
     }
   }
 }

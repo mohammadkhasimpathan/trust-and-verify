@@ -814,39 +814,87 @@
                   <h3 style="color: #00f0ff; margin-top: 0; margin-bottom: 10px;">User Profile</h3>
                   <div style="display: grid; grid-template-columns: 100px 1fr; gap: 10px; font-size: 13px;">
                     <strong style="color: #aaa;">Name:</strong> <span id="account-name" style="color: #fff;">-</span>
-                    <strong style="color: #aaa;">Email:</strong> <span id="account-email" style="color: #fff;">-</span>
+                    <strong style="color: #aaa;">Email:</strong> 
+                    <span>
+                      <span id="account-email" style="color: #fff;">-</span>
+                      <span id="account-verified-badge" style="color: #00ff66; font-size: 10px; margin-left: 10px; display: none;">[VERIFIED]</span>
+                      <span id="account-unverified-badge" style="color: #ffaa00; font-size: 10px; margin-left: 10px; display: none;">[UNVERIFIED]</span>
+                    </span>
+                    <strong style="color: #aaa;">MFA:</strong> <span id="account-mfa-status" style="color: #fff;">-</span>
                     <strong style="color: #aaa;">Status:</strong> <span id="account-status" style="color: #00ff66;">Signed In</span>
-                    <strong style="color: #aaa;">Last Sync:</strong> <span id="account-last-sync" style="color: #fff;">-</span>
+                  </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                  <div class="glass-panel" style="padding: 20px; border: 1px solid rgba(0, 240, 255, 0.2);">
+                    <h3 style="color: #ffaa00; margin-top: 0; margin-bottom: 15px;">Security Options</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                      <button class="action-btn" onclick="window.accountUi.showChangePassword()">Change Password</button>
+                      <button class="action-btn" id="btn-setup-mfa" onclick="window.accountUi.showMfaSetup()">Enable MFA (TOTP)</button>
+                      <button class="action-btn" id="btn-disable-mfa" style="display: none; border-color: #ff003c; color: #ff003c;" onclick="window.accountUi.showMfaDisable()">Disable MFA</button>
+                    </div>
+                  </div>
+                  
+                  <div class="glass-panel" style="padding: 20px; border: 1px solid rgba(0, 240, 255, 0.2);">
+                    <h3 style="color: #00ff66; margin-top: 0; margin-bottom: 15px;">Data & Sync</h3>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                      <button class="action-btn" onclick="window.accountUi.syncNow()">Synchronize Now</button>
+                      <button class="action-btn" onclick="window.accountUi.exportData()">Export Cloud Data</button>
+                      <button class="action-btn secondary-action" onclick="window.accountUi.logout()">Log Out</button>
+                    </div>
                   </div>
                 </div>
 
-                <div class="glass-panel" style="padding: 20px; border: 1px solid rgba(0, 240, 255, 0.2); display: flex; flex-direction: column; gap: 15px;">
-                  <h3 style="color: #ffaa00; margin-top: 0; margin-bottom: 5px;">Data & Privacy</h3>
-                  <button class="action-btn" onclick="window.accountUi.syncNow()">Synchronize Now</button>
-                  <button class="action-btn" onclick="window.accountUi.exportData()">Export My Data</button>
-                  <button class="action-btn" style="border-color: #ff003c; color: #ff003c;" onclick="window.accountUi.deleteAccount()">Delete Account</button>
-                  <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); width: 100%; margin: 10px 0;">
-                  <button class="action-btn" onclick="window.accountUi.logout()">Log Out</button>
+                <div class="glass-panel" style="padding: 20px; border: 1px solid rgba(0, 240, 255, 0.2); margin-bottom: 20px;">
+                  <h3 style="color: #00f0ff; margin-top: 0; margin-bottom: 10px;">Active Sessions</h3>
+                  <button class="action-btn secondary-action" style="margin-bottom: 10px; font-size: 11px;" onclick="window.accountUi.revokeOtherSessions()">Revoke All Other Sessions</button>
+                  <div id="account-sessions-list" style="font-size: 12px; color: #ccc;">
+                    Loading sessions...
+                  </div>
+                </div>
+
+                <div class="glass-panel" style="padding: 20px; border: 1px solid rgba(0, 240, 255, 0.2); margin-bottom: 20px;">
+                  <h3 style="color: #00f0ff; margin-top: 0; margin-bottom: 10px;">Recent Security Activity</h3>
+                  <div id="account-events-list" style="font-size: 12px; color: #ccc;">
+                    Loading events...
+                  </div>
+                </div>
+
+                <div style="text-align: right;">
+                  <button class="action-btn" style="border-color: #ff003c; color: #ff003c; font-size: 11px;" onclick="window.accountUi.deleteAccount()">Delete Account</button>
                 </div>
               </div>
 
-              <!-- Modals for auth -->
+              <!-- General Purpose Auth Modal -->
               <div id="auth-modal" style="display: none; background: rgba(0,0,0,0.8); position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 100; justify-content: center; align-items: center;">
                 <div class="glass-panel" style="padding: 30px; border: 1px solid #00f0ff; width: 350px;">
-                  <h3 id="auth-title" style="color: #00f0ff; margin-top: 0; text-align: center;">Sign In</h3>
+                  <h3 id="auth-title" style="color: #00f0ff; margin-top: 0; text-align: center;">Modal Title</h3>
                   <form id="auth-form" onsubmit="event.preventDefault(); window.accountUi.submitAuth()">
                     <div id="auth-name-group" style="display: none; margin-bottom: 15px;">
                       <label style="font-size: 11px; color: #aaa; display: block; margin-bottom: 5px;">Display Name</label>
                       <input type="text" id="auth-name" class="hacker-input" style="width: 100%; box-sizing: border-box;">
                     </div>
-                    <div style="margin-bottom: 15px;">
+                    <div id="auth-email-group" style="margin-bottom: 15px;">
                       <label style="font-size: 11px; color: #aaa; display: block; margin-bottom: 5px;">Email</label>
-                      <input type="email" id="auth-email" required class="hacker-input" style="width: 100%; box-sizing: border-box;">
+                      <input type="email" id="auth-email" class="hacker-input" style="width: 100%; box-sizing: border-box;">
                     </div>
-                    <div style="margin-bottom: 20px;">
-                      <label style="font-size: 11px; color: #aaa; display: block; margin-bottom: 5px;">Password</label>
-                      <input type="password" id="auth-password" required class="hacker-input" style="width: 100%; box-sizing: border-box;">
+                    <div id="auth-password-group" style="margin-bottom: 15px;">
+                      <label id="auth-password-label" style="font-size: 11px; color: #aaa; display: block; margin-bottom: 5px;">Password</label>
+                      <input type="password" id="auth-password" class="hacker-input" style="width: 100%; box-sizing: border-box;">
                     </div>
+                    <div id="auth-new-password-group" style="display: none; margin-bottom: 15px;">
+                      <label style="font-size: 11px; color: #aaa; display: block; margin-bottom: 5px;">New Password</label>
+                      <input type="password" id="auth-new-password" class="hacker-input" style="width: 100%; box-sizing: border-box;">
+                    </div>
+                    <div id="auth-totp-group" style="display: none; margin-bottom: 15px;">
+                      <label style="font-size: 11px; color: #aaa; display: block; margin-bottom: 5px;">MFA Code (TOTP / Backup)</label>
+                      <input type="text" id="auth-totp" class="hacker-input" style="width: 100%; box-sizing: border-box;">
+                    </div>
+                    
+                    <div id="auth-links" style="font-size: 11px; text-align: right; margin-bottom: 15px;">
+                      <a href="#" style="color: #00f0ff;" onclick="window.accountUi.showForgotPassword(); return false;">Forgot Password?</a>
+                    </div>
+
                     <div id="auth-error" style="color: #ff003c; font-size: 12px; margin-bottom: 15px; text-align: center; display: none;"></div>
                     <div style="display: flex; justify-content: space-between; gap: 10px;">
                       <button type="button" class="action-btn secondary-action" onclick="window.accountUi.closeAuthModal()" style="flex: 1;">Cancel</button>
@@ -855,6 +903,48 @@
                   </form>
                 </div>
               </div>
+
+              <!-- MFA Setup Modal -->
+              <div id="mfa-modal" style="display: none; background: rgba(0,0,0,0.8); position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 100; justify-content: center; align-items: center;">
+                <div class="glass-panel" style="padding: 30px; border: 1px solid #00f0ff; width: 400px;">
+                  <h3 style="color: #00f0ff; margin-top: 0; text-align: center;">Setup MFA</h3>
+                  <p style="font-size: 12px; color: #aaa; text-align: center;">Scan the QR code below using Google Authenticator, Authy, or similar app.</p>
+                  
+                  <div style="text-align: center; margin: 20px 0; background: #fff; padding: 10px; display: inline-block; border-radius: 4px;">
+                     <!-- Real QR code will be rendered into this img via qrcode lib or simple canvas -->
+                     <canvas id="mfa-qr-canvas"></canvas>
+                  </div>
+                  <div style="font-size: 11px; color: #aaa; text-align: center; margin-bottom: 20px;">
+                    Secret: <span id="mfa-secret-text" style="color: #fff; font-family: monospace;"></span>
+                  </div>
+                  
+                  <form id="mfa-verify-form" onsubmit="event.preventDefault(); window.accountUi.submitMfaVerify()">
+                    <div style="margin-bottom: 20px;">
+                      <label style="font-size: 11px; color: #aaa; display: block; margin-bottom: 5px;">Enter Code from App to Verify</label>
+                      <input type="text" id="mfa-verify-code" required class="hacker-input" style="width: 100%; box-sizing: border-box; text-align: center; font-size: 16px; letter-spacing: 2px;">
+                    </div>
+                    <div id="mfa-error" style="color: #ff003c; font-size: 12px; margin-bottom: 15px; text-align: center; display: none;"></div>
+                    <div style="display: flex; justify-content: space-between; gap: 10px;">
+                      <button type="button" class="action-btn secondary-action" onclick="window.accountUi.closeMfaModal()" style="flex: 1;">Cancel</button>
+                      <button type="submit" class="action-btn" style="flex: 1;">Enable MFA</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+
+              <!-- Backup Codes Modal -->
+              <div id="backup-codes-modal" style="display: none; background: rgba(0,0,0,0.8); position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 100; justify-content: center; align-items: center;">
+                <div class="glass-panel" style="padding: 30px; border: 1px solid #00ff66; width: 350px;">
+                  <h3 style="color: #00ff66; margin-top: 0; text-align: center;">MFA Enabled!</h3>
+                  <p style="font-size: 12px; color: #ffaa00; text-align: center;">
+                    Save these backup codes in a secure place. They will only be shown ONCE.
+                  </p>
+                  <div id="backup-codes-list" style="margin: 20px 0; background: rgba(0,0,0,0.5); padding: 15px; border: 1px solid #333; font-family: monospace; font-size: 14px; text-align: center; letter-spacing: 2px; color: #fff;">
+                  </div>
+                  <button type="button" class="action-btn" onclick="document.getElementById('backup-codes-modal').style.display='none'" style="width: 100%;">I have saved these safely</button>
+                </div>
+              </div>
+
             </div>
           </div>
           
