@@ -66,6 +66,28 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
+// ─── CSRF Protection ───────────────────────────────────────────────────────
+app.use((req, res, next) => {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    const origin = req.headers.origin || req.headers.referer;
+    // Allow if no origin (e.g. local same-origin without it in some strict cases) 
+    // or if it matches our host. In a real environment, match exactly.
+    if (origin) {
+      try {
+        const originUrl = new URL(origin);
+        const hostUrl = new URL(`${req.protocol}://${req.get('host')}`);
+        if (originUrl.host !== hostUrl.host) {
+          return res.status(403).json({ error: 'CSRF token mismatch or invalid origin.' });
+        }
+      } catch (e) {
+        // Invalid URL format
+      }
+    }
+  }
+  next();
+});
+
+
 // ─── Upload Directory ──────────────────────────────────────────────────────
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -457,6 +479,29 @@ app.use((err, req, res, next) => {
 
   res.status(status).json(body);
 });
+
+// ─── Phase 7: Accounts and Sync ──────────────────────────────────────────────
+const session = require('express-session');
+const { runMigrations } = require('./server/db/migrations/setup');
+runMigrations();
+
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'trust-verify-local-secret-38917398127391',
+  resave: false,
+  saveUninitialized: false,
+  cookie: { 
+    secure: IS_PRODUCTION, 
+    httpOnly: true, 
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000 // 1 week
+  }
+}));
+
+const authRouter = require('./server/auth/authRouter');
+const syncRouter = require('./server/sync/syncRouter');
+
+app.use('/api/auth', authRouter);
+app.use('/api/sync', syncRouter);
 
 // ─── Start Server ──────────────────────────────────────────────────────────
 if (require.main === module) {

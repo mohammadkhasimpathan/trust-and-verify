@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'trustVerify';
-const DB_VERSION = 1;
+const DB_VERSION = 2; // Incremented for Phase 6
 const STORE_NAME = 'scans';
 const MAX_RECORDS = 500;
 
@@ -36,6 +36,27 @@ class HistoryStore {
           store.createIndex('timestamp', 'createdAt', { unique: false });
           store.createIndex('module', 'module', { unique: false });
           store.createIndex('severity', 'result.severity', { unique: false });
+        }
+        
+        // Phase 6 Stores
+        if (!db.objectStoreNames.contains('trainingProgress')) {
+          db.createObjectStore('trainingProgress', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('quizAttempts')) {
+          db.createObjectStore('quizAttempts', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('challengeAttempts')) {
+          db.createObjectStore('challengeAttempts', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('badges')) {
+          db.createObjectStore('badges', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('certificates')) {
+          db.createObjectStore('certificates', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('trainingEvents')) {
+          const evStore = db.createObjectStore('trainingEvents', { keyPath: 'eventId' });
+          evStore.createIndex('timestamp', 'timestamp', { unique: false });
         }
       };
     });

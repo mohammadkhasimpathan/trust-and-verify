@@ -232,7 +232,7 @@ function navigateTo(moduleId) {
   activeModule = moduleId;
   
   // Highlight navigation item
-  const navIds = ['email', 'sms', 'caller', 'interceptor', 'sim', 'urlqr', 'domain', 'history'];
+  const navIds = ['email', 'sms', 'caller', 'interceptor', 'sim', 'urlqr', 'domain', 'history', 'training', 'account'];
   navIds.forEach(id => {
     const navElem = document.getElementById(`nav-${id}`);
     const viewElem = document.getElementById(`view-${id}`);
@@ -248,6 +248,12 @@ function navigateTo(moduleId) {
   
   if (moduleId === 'history') {
     if (window.historyUi) window.historyUi.loadHistory();
+  }
+  if (moduleId === 'training') {
+    if (window.trainingUi) window.trainingUi.renderDashboard();
+  }
+  if (moduleId === 'account') {
+    if (window.accountUi) window.accountUi.refreshAuth();
   }
   
   addLogLine(`[SYSTEM] Switched console panel to: [${moduleId.toUpperCase()}_MATRIX]`, 'system');

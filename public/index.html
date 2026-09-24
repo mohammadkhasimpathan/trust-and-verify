@@ -100,6 +100,14 @@
           <span class="nav-icon">🗄️</span>
           <span class="nav-label">Scan History</span>
         </button>
+        <button class="nav-item" id="nav-training" onclick="navigateTo('training')">
+          <span class="nav-icon">🎓</span>
+          <span class="nav-label">Security Training</span>
+        </button>
+        <button class="nav-item" id="nav-account" onclick="navigateTo('account')">
+          <span class="nav-icon">👤</span>
+          <span class="nav-label">Account & Sync</span>
+        </button>
       </nav>
 
       <!-- App Install / Sound Controls Footer -->
@@ -745,6 +753,110 @@
               </div>
             </div>
           </div>
+          <!-- TRAINING VIEW -->
+          <div class="module-view" id="view-training" style="display: none;">
+            <div class="panel-header">
+              <h2><span>[09]</span> SECURITY TRAINING & GAMIFICATION</h2>
+              <div class="cyber-scanner-line"></div>
+            </div>
+            <div class="panel-body">
+              
+              <div class="training-dashboard-layout" style="display: flex; flex-direction: column; gap: 20px;">
+                
+                <!-- Gamification Top Bar -->
+                <div class="training-top-bar" style="display: flex; justify-content: space-between; align-items: center; background: rgba(0, 240, 255, 0.05); border: 1px solid rgba(0, 240, 255, 0.2); padding: 15px; border-radius: 4px;">
+                  <div style="display: flex; gap: 20px;">
+                    <div>
+                      <div style="font-size: 10px; color: #aaa;">CURRENT LEVEL</div>
+                      <div id="train-level" style="font-size: 16px; color: #00f0ff; font-weight: bold;">Level 1 — Beginner</div>
+                    </div>
+                    <div>
+                      <div style="font-size: 10px; color: #aaa;">XP POINTS</div>
+                      <div id="train-xp" style="font-size: 16px; color: #fff; font-weight: bold;">0</div>
+                    </div>
+                  </div>
+                  <div>
+                    <div style="font-size: 10px; color: #aaa;">STREAK</div>
+                    <div id="train-streak" style="font-size: 16px; color: #ffaa00; font-weight: bold;">0 Days</div>
+                  </div>
+                </div>
+
+                <!-- Training Content Area -->
+                <div id="training-content-area">
+                  <div style="display: flex; justify-content: center; padding: 40px;">
+                     Loading training content...
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+          <!-- ACCOUNT VIEW -->
+          <div class="module-view" id="view-account" style="display: none;">
+            <div class="panel-header">
+              <h2><span>[10]</span> ACCOUNT & CLOUD SYNC</h2>
+              <div class="cyber-scanner-line"></div>
+            </div>
+            <div class="panel-body">
+              <div id="account-guest-ui" style="display: none; padding: 20px; text-align: center;">
+                <h3 style="color: #00f0ff; margin-bottom: 20px;">Local-only mode</h3>
+                <p style="color: #aaa; margin-bottom: 30px; font-size: 13px;">Create an account to synchronize your Trust & Verify data across devices.</p>
+                
+                <div style="display: flex; justify-content: center; gap: 20px;">
+                  <button class="action-btn" onclick="window.accountUi.showLogin()">Sign In</button>
+                  <button class="action-btn" style="border-color: #00ff66; color: #00ff66;" onclick="window.accountUi.showRegister()">Create Account</button>
+                </div>
+              </div>
+
+              <div id="account-user-ui" style="display: none;">
+                <div class="glass-panel" style="padding: 20px; border: 1px solid rgba(0, 240, 255, 0.2); margin-bottom: 20px;">
+                  <h3 style="color: #00f0ff; margin-top: 0; margin-bottom: 10px;">User Profile</h3>
+                  <div style="display: grid; grid-template-columns: 100px 1fr; gap: 10px; font-size: 13px;">
+                    <strong style="color: #aaa;">Name:</strong> <span id="account-name" style="color: #fff;">-</span>
+                    <strong style="color: #aaa;">Email:</strong> <span id="account-email" style="color: #fff;">-</span>
+                    <strong style="color: #aaa;">Status:</strong> <span id="account-status" style="color: #00ff66;">Signed In</span>
+                    <strong style="color: #aaa;">Last Sync:</strong> <span id="account-last-sync" style="color: #fff;">-</span>
+                  </div>
+                </div>
+
+                <div class="glass-panel" style="padding: 20px; border: 1px solid rgba(0, 240, 255, 0.2); display: flex; flex-direction: column; gap: 15px;">
+                  <h3 style="color: #ffaa00; margin-top: 0; margin-bottom: 5px;">Data & Privacy</h3>
+                  <button class="action-btn" onclick="window.accountUi.syncNow()">Synchronize Now</button>
+                  <button class="action-btn" onclick="window.accountUi.exportData()">Export My Data</button>
+                  <button class="action-btn" style="border-color: #ff003c; color: #ff003c;" onclick="window.accountUi.deleteAccount()">Delete Account</button>
+                  <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.1); width: 100%; margin: 10px 0;">
+                  <button class="action-btn" onclick="window.accountUi.logout()">Log Out</button>
+                </div>
+              </div>
+
+              <!-- Modals for auth -->
+              <div id="auth-modal" style="display: none; background: rgba(0,0,0,0.8); position: absolute; top: 0; left: 0; right: 0; bottom: 0; z-index: 100; justify-content: center; align-items: center;">
+                <div class="glass-panel" style="padding: 30px; border: 1px solid #00f0ff; width: 350px;">
+                  <h3 id="auth-title" style="color: #00f0ff; margin-top: 0; text-align: center;">Sign In</h3>
+                  <form id="auth-form" onsubmit="event.preventDefault(); window.accountUi.submitAuth()">
+                    <div id="auth-name-group" style="display: none; margin-bottom: 15px;">
+                      <label style="font-size: 11px; color: #aaa; display: block; margin-bottom: 5px;">Display Name</label>
+                      <input type="text" id="auth-name" class="hacker-input" style="width: 100%; box-sizing: border-box;">
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                      <label style="font-size: 11px; color: #aaa; display: block; margin-bottom: 5px;">Email</label>
+                      <input type="email" id="auth-email" required class="hacker-input" style="width: 100%; box-sizing: border-box;">
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                      <label style="font-size: 11px; color: #aaa; display: block; margin-bottom: 5px;">Password</label>
+                      <input type="password" id="auth-password" required class="hacker-input" style="width: 100%; box-sizing: border-box;">
+                    </div>
+                    <div id="auth-error" style="color: #ff003c; font-size: 12px; margin-bottom: 15px; text-align: center; display: none;"></div>
+                    <div style="display: flex; justify-content: space-between; gap: 10px;">
+                      <button type="button" class="action-btn secondary-action" onclick="window.accountUi.closeAuthModal()" style="flex: 1;">Cancel</button>
+                      <button type="submit" class="action-btn" id="auth-submit-btn" style="flex: 1;">Submit</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
           
         </section>
 
@@ -1147,6 +1259,22 @@
   <script src="history/reportRenderer.js"></script>
   <script src="history/historyUi.js"></script>
   
+  <!-- Phase 6 Training & Gamification -->
+  <script src="training/trainingData.js"></script>
+  <script src="training/progressManager.js"></script>
+  <script src="training/gamificationEngine.js"></script>
+  <script src="training/badgeEngine.js"></script>
+  <script src="training/lessonEngine.js"></script>
+  <script src="training/quizEngine.js"></script>
+  <script src="training/challengeEngine.js"></script>
+  <script src="training/ctfEngine.js"></script>
+  <script src="training/certificateRenderer.js"></script>
+  <script src="training/trainingUi.js"></script>
+  
+  <!-- Phase 7 Accounts & Sync -->
+  <script src="account/syncEngine.js"></script>
+  <script src="account/accountUi.js"></script>
+
   <script src="app.js"></script>
   <script src="utils/headerAnalyzer.js"></script>
   <script src="utils/fileScanner.js"></script>

@@ -11,7 +11,7 @@
  *  - Cache install failure is surfaced as a console error without crashing.
  */
 
-const CACHE_NAME = 'trust-verify-v2';
+const CACHE_NAME = 'trust-verify-v3';
 
 const STATIC_ASSETS = [
   './',
@@ -24,7 +24,26 @@ const STATIC_ASSETS = [
   './utils/fileScanner.js',
   './utils/smsAnalyzer.js',
   './utils/callScanner.js',
-  './utils/simRegistry.js'   // <-- was missing in v1
+  './utils/simRegistry.js',
+  './utils/jsQR.js',
+  './utils/urlAnalyzer.js',
+  './utils/qrAnalyzer.js',
+  './utils/domainAnalyzer.js',
+  './utils/sslAnalyzer.js',
+  './history/historyStore.js',
+  './history/historyManager.js',
+  './history/reportRenderer.js',
+  './history/historyUi.js',
+  './training/trainingData.js',
+  './training/progressManager.js',
+  './training/gamificationEngine.js',
+  './training/badgeEngine.js',
+  './training/lessonEngine.js',
+  './training/quizEngine.js',
+  './training/challengeEngine.js',
+  './training/ctfEngine.js',
+  './training/certificateRenderer.js',
+  './training/trainingUi.js'
 ];
 
 // ─── Install ───────────────────────────────────────────────────────────────
