@@ -1,0 +1,23 @@
+From: "Google Workspace Team" <workspace-noreply@google.com>
+To: user@company.com
+Subject: Your monthly billing summary
+Date: Thu, 24 Sep 2026 08:00:00 +0000
+Message-ID: <abc123@mail.google.com>
+MIME-Version: 1.0
+Received: from mail.google.com (mail.google.com [209.85.220.41])
+        by mx.company.com with ESMTPS id xyz789
+        for <user@company.com>;
+        Thu, 24 Sep 2026 08:00:01 +0000 (UTC)
+Received-SPF: pass (mx.company.com: domain of workspace-noreply@google.com designates 209.85.220.41 as permitted sender)
+        receiver=mx.company.com; client-ip=209.85.220.41; helo=mail.google.com
+Authentication-Results: mx.company.com;
+        spf=pass smtp.mailfrom=workspace-noreply@google.com;
+        dkim=pass header.i=@google.com header.d=google.com;
+        dmarc=pass header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=20230601;
+        h=from:to:subject:date:message-id;
+        bh=abc123==;
+        b=signature==
+Content-Type: text/plain; charset=UTF-8
+
+Your billing summary for September is ready.

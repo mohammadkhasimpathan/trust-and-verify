@@ -1,0 +1,18 @@
+From: "PayPal Support" <service-alerts@attacker-scam-portal.com>
+To: victim@example.com
+Subject: Urgent: Your account has been limited
+Date: Thu, 24 Sep 2026 09:00:00 +0000
+Message-ID: <xyz@attacker-scam-portal.com>
+Reply-To: paypal.harvest@evil-redirector.net
+Received: from compromised.dynamic-ip-pool.isp.net (compromised.dynamic-ip-pool.isp.net [203.0.113.99])
+        by mx.example.com with SMTP id abc;
+        Thu, 24 Sep 2026 09:00:01 +0000 (UTC)
+Received-SPF: fail (mx.example.com: domain of service-alerts@attacker-scam-portal.com does not designate 203.0.113.99 as permitted sender)
+        receiver=mx.example.com; client-ip=203.0.113.99
+Authentication-Results: mx.example.com;
+        spf=fail smtp.mailfrom=service-alerts@attacker-scam-portal.com;
+        dkim=fail header.i=@attacker-scam-portal.com;
+        dmarc=fail header.from=attacker-scam-portal.com
+Content-Type: text/plain; charset=UTF-8
+
+Click here to verify your account: https://paypal-verification.attacker-scam-portal.com/verify?id=abc123

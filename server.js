@@ -25,6 +25,9 @@ const rateLimit = require('express-rate-limit');
 
 const { analyzeHeaders } = require('./public/utils/headerAnalyzer');
 const { analyzeFile } = require('./public/utils/fileScanner');
+// Phase 1 utilities (loaded after headerAnalyzer so they are available for require() inside it)
+require('./public/utils/emailParser');
+require('./public/utils/domainUtils');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -177,6 +180,21 @@ app.post('/api/scan-file', upload.single('attachment'), (req, res, next) => {
 /**
  * POST /api/scan-eml
  * Multipart form-data, field name: "emlFile"
+ *
+ * Phase 1 response structure:
+ *  {
+ *    message:        { from, to, cc, replyTo, returnPath, subject, date, messageId },
+ *    authentication: { spf, dkim, dmarc, dkimDomain, raw },
+ *    routing:        { hops, originatingIP, hopCount },
+ *    links:          string[],
+ *    attachments:    [{ filename, contentType, extension, size, hash, riskCategory, findings }],
+ *    findings:       structured findings array,
+ *    score:          number,
+ *    threatLevel:    string,
+ *    logs:           string[],
+ *    parsedHeaders:  [{name, value, raw}],
+ *    headerResults:  full analyzeHeaders() output (backward compat)
+ *  }
  */
 app.post('/api/scan-eml', upload.single('emlFile'), async (req, res, next) => {
   const filePath = req.file ? req.file.path : null;
@@ -190,9 +208,6 @@ app.post('/api/scan-eml', upload.single('emlFile'), async (req, res, next) => {
 
     const fileBuffer = fs.readFileSync(filePath);
 
-    // mailparser is a required production dependency declared in package.json.
-    // The require is kept inside the route so startup never fails even if the
-    // module somehow cannot be loaded (defensive programming).
     let simpleParser;
     try {
       simpleParser = require('mailparser').simpleParser;
@@ -206,38 +221,58 @@ app.post('/api/scan-eml', upload.single('emlFile'), async (req, res, next) => {
     // Parse EML
     const email = await simpleParser(fileBuffer);
 
-    // Extract raw headers
+    // ── Reconstruct raw header block ────────────────────────────────────
+    // mailparser gives us parsed headers; we rebuild a raw block so
+    // analyzeHeaders() can use its own RFC 5322-aware parser.
     let rawHeaders = '';
     email.headers.forEach((value, key) => {
-      if (Array.isArray(value)) {
-        value.forEach((val) => {
-          rawHeaders += `${key}: ${typeof val === 'object' ? JSON.stringify(val) : val}\n`;
-        });
-      } else if (typeof value === 'object') {
-        rawHeaders += `${key}: ${JSON.stringify(value)}\n`;
-      } else {
-        rawHeaders += `${key}: ${value}\n`;
-      }
+      const safeVal = Array.isArray(value)
+        ? value.map(v => (typeof v === 'object' ? JSON.stringify(v) : String(v))).join(', ')
+        : typeof value === 'object' ? JSON.stringify(value) : String(value);
+      rawHeaders += `${key}: ${safeVal}\n`;
     });
 
+    // ── Run header analysis ──────────────────────────────────────────────
     const headerResults = analyzeHeaders(rawHeaders);
 
-    // Scan inline attachments
-    const attachmentResults = [];
+    // ── Build message envelope ───────────────────────────────────────────
+    const getAddr = (field) => (field ? field.text || String(field) : null);
+
+    const message = {
+      from:       getAddr(email.from),
+      to:         getAddr(email.to),
+      cc:         getAddr(email.cc),
+      replyTo:    getAddr(email.replyTo),
+      returnPath: email.headers.get('return-path') || null,
+      subject:    email.subject || null,
+      date:       email.date ? email.date.toISOString() : null,
+      messageId:  email.messageId || null
+    };
+
+    // ── Scan attachments ──────────────────────────────────────────────────
+    const attachments = [];
     if (email.attachments && email.attachments.length > 0) {
-      for (const attachment of email.attachments) {
-        const attachHash = crypto.createHash('sha256').update(attachment.content).digest('hex');
+      for (const att of email.attachments) {
+        const attHash = crypto.createHash('sha256').update(att.content).digest('hex');
         let contentStr = '';
-        if (!isBinaryBuffer(attachment.content)) {
-          contentStr = attachment.content.toString('utf8');
+        if (!isBinaryBuffer(att.content)) {
+          contentStr = att.content.toString('utf8');
         }
-        const scan = analyzeFile(attachment.filename, contentStr, attachHash);
-        attachmentResults.push({
-          filename: attachment.filename,
-          contentType: attachment.contentType,
-          size: attachment.size,
-          hash: attachHash,
-          results: scan
+        const scan = analyzeFile(att.filename || 'unknown', contentStr, attHash);
+
+        const filename = att.filename || 'unnamed';
+        const ext = filename.includes('.') ? filename.split('.').pop().toLowerCase() : '';
+
+        attachments.push({
+          filename,
+          extension: ext,
+          contentType: att.contentType || 'application/octet-stream',
+          size:        att.size || att.content.length,
+          hash:        attHash,
+          riskCategory: scan.threatLevel,
+          score:       scan.score,
+          findings:    scan.details || [],
+          logs:        scan.logs || []
         });
       }
     }
@@ -246,12 +281,20 @@ app.post('/api/scan-eml', upload.single('emlFile'), async (req, res, next) => {
     safeDeleteFile(filePath);
 
     return res.json({
-      subject: email.subject,
-      from: email.from ? email.from.text : 'Unknown',
-      to: email.to ? email.to.text : 'Unknown',
-      date: email.date,
-      headerResults,
-      attachments: attachmentResults
+      message,
+      authentication: headerResults.authentication || {
+        spf:  null, dkim: null, dmarc: null
+      },
+      routing:        headerResults.routing  || { hops: [], originatingIP: null, hopCount: 0 },
+      links:          headerResults.links    || [],
+      attachments,
+      findings:       headerResults.findings || [],
+      score:          headerResults.score,
+      threatLevel:    headerResults.threatLevel,
+      logs:           headerResults.logs,
+      parsedHeaders:  headerResults.parsedHeaders || [],
+      // Backward compat: keep headerResults object available
+      headerResults
     });
   } catch (err) {
     safeDeleteFile(filePath);

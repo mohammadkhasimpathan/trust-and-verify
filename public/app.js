@@ -8,6 +8,7 @@
 let activeModule = 'email';
 let activeEmailTab = 'headers';
 let selectedFile = null;
+let selectedEml = null;
 let simulatedFileData = null;
 let currentScenario = 'irs';
 
@@ -247,9 +248,11 @@ function switchEmailTab(tabId) {
   activeEmailTab = tabId;
   
   document.getElementById('tab-headers-btn').classList.toggle('active', tabId === 'headers');
+  document.getElementById('tab-eml-btn').classList.toggle('active', tabId === 'eml');
   document.getElementById('tab-files-btn').classList.toggle('active', tabId === 'files');
   
   document.getElementById('email-tab-headers').classList.toggle('active', tabId === 'headers');
+  document.getElementById('email-tab-eml').classList.toggle('active', tabId === 'eml');
   document.getElementById('email-tab-files').classList.toggle('active', tabId === 'files');
   
   addLogLine(`[INFO] Sub-tab navigation focused on: ${tabId.toUpperCase()}`, 'system');
@@ -356,7 +359,7 @@ function populateFindings(findings) {
   
   if (_emptyFindings) _emptyFindings.style.display = 'none';
   
-  findings.forEach(find => {
+  findings.forEach((find, index) => {
     const card = document.createElement('div');
     card.className = `finding-card ${find.type === 'danger' ? 'danger' : 'warning'}`;
     
@@ -370,8 +373,98 @@ function populateFindings(findings) {
     
     card.appendChild(title);
     card.appendChild(desc);
+    
+    // Phase 1: Add detailed view button if structured data is present
+    if (find.explanation || find.evidence || find.recommendation) {
+      const btn = document.createElement('button');
+      btn.className = 'btn-finding-detail';
+      btn.textContent = 'View Details';
+      btn.onclick = () => openFindingDetails(find);
+      card.appendChild(btn);
+    }
+    
     _findingsList.appendChild(card);
   });
+}
+
+function openFindingDetails(finding) {
+  const modal = document.getElementById('intel-modal');
+  if (!modal) return;
+  
+  document.getElementById('intel-modal-title').textContent = `THREAT_INTEL://${finding.severity || 'WARNING'}`;
+  document.getElementById('intel-modal-badge').textContent = finding.category || 'ANALYSIS';
+  document.getElementById('intel-modal-heading').textContent = finding.title;
+  document.getElementById('intel-modal-desc').textContent = finding.explanation || finding.message;
+  
+  const codeBlock = document.getElementById('intel-modal-code');
+  if (finding.evidence) {
+    codeBlock.textContent = finding.evidence;
+    codeBlock.parentElement.style.display = 'block';
+  } else {
+    codeBlock.parentElement.style.display = 'none';
+  }
+  
+  const mitiBlock = document.getElementById('intel-modal-mitigation');
+  if (finding.recommendation) {
+    mitiBlock.textContent = finding.recommendation;
+    mitiBlock.parentElement.style.display = 'block';
+  } else {
+    mitiBlock.parentElement.style.display = 'none';
+  }
+  
+  modal.classList.add('active');
+}
+
+function closeIntelligenceModal() {
+  const modal = document.getElementById('intel-modal');
+  if (modal) modal.classList.remove('active');
+}
+
+function populateParsedHeaders(parsedHeaders) {
+  const tbody = document.getElementById('parsed-headers-tbody');
+  const btn = document.getElementById('btn-view-headers');
+  if (!tbody || !btn) return;
+  
+  tbody.innerHTML = '';
+  
+  if (!parsedHeaders || parsedHeaders.length === 0) {
+    btn.style.display = 'none';
+    return;
+  }
+  
+  btn.style.display = 'block';
+  
+  parsedHeaders.forEach(h => {
+    const tr = document.createElement('tr');
+    
+    const tdName = document.createElement('td');
+    tdName.textContent = (h.name || '').toUpperCase();
+    tdName.style.color = 'var(--accent-cyan)';
+    
+    const tdVal = document.createElement('td');
+    tdVal.textContent = h.value;
+    
+    const tdRaw = document.createElement('td');
+    tdRaw.textContent = h.raw || '';
+    tdRaw.style.opacity = '0.7';
+    tdRaw.style.fontSize = '0.9em';
+    tdRaw.style.whiteSpace = 'pre-wrap';
+    
+    tr.appendChild(tdName);
+    tr.appendChild(tdVal);
+    tr.appendChild(tdRaw);
+    tbody.appendChild(tr);
+  });
+}
+
+function openHeadersModal() {
+  const modal = document.getElementById('headers-modal');
+  if (modal) modal.classList.add('active');
+}
+
+function closeHeadersModal() {
+  const modal = document.getElementById('headers-modal');
+  if (modal) modal.classList.remove('active');
 }
 
 // 5. EMAIL MODULE EXECUTION (Existing Code base)
@@ -439,7 +532,8 @@ async function runHeaderAnalysis() {
       });
       
       updateThreatGauge(results.score, results.threatLevel);
-      populateFindings(results.details);
+      populateFindings(results.details || results.findings);
+      populateParsedHeaders(results.parsedHeaders);
       
       let verdict = 'Email inspection complete. No critical structural anomalies detected.';
       if (results.score >= 80) {
@@ -458,6 +552,118 @@ async function runHeaderAnalysis() {
       scanBtn.removeAttribute('disabled');
     }
   }, 600);
+}
+
+// EML File Handler
+const emlDropzone = document.getElementById('eml-dropzone');
+if (emlDropzone) {
+  ['dragenter', 'dragover'].forEach(eventName => {
+    emlDropzone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      emlDropzone.classList.add('dragover');
+    }, false);
+  });
+  ['dragleave', 'drop'].forEach(eventName => {
+    emlDropzone.addEventListener(eventName, (e) => {
+      e.preventDefault();
+      emlDropzone.classList.remove('dragover');
+    }, false);
+  });
+  emlDropzone.addEventListener('drop', (e) => {
+    const files = e.dataTransfer.files;
+    if (files.length > 0) selectEml(files[0]);
+  });
+}
+
+function handleEmlSelect(event) {
+  const files = event.target.files;
+  if (files.length > 0) selectEml(files[0]);
+}
+
+function selectEml(file) {
+  selectedEml = file;
+  document.getElementById('selected-eml-name').textContent = file.name;
+  document.getElementById('selected-eml-size').textContent = formatBytes(file.size);
+  document.getElementById('eml-info-card').style.display = 'flex';
+  document.getElementById('btn-run-eml').removeAttribute('disabled');
+  addLogLine(`[INFO] EML message queued for analysis: ${file.name}`, 'success');
+}
+
+function clearSelectedEml() {
+  selectedEml = null;
+  document.getElementById('eml-input').value = '';
+  document.getElementById('eml-info-card').style.display = 'none';
+  document.getElementById('btn-run-eml').setAttribute('disabled', 'true');
+  addLogLine(`[INFO] EML queue cleared.`, 'system');
+}
+
+async function runEmlScan() {
+  if (!selectedEml) return;
+
+  initAudioContext();
+  clearTerminal();
+  const scanBtn = document.getElementById('btn-run-eml');
+  scanBtn.setAttribute('disabled', 'true');
+  addLogLine(`[SYSTEM] Transmitting .EML payload to backend analysis engine...`, 'system');
+
+  const formData = new FormData();
+  formData.append('emlFile', selectedEml);
+
+  try {
+    const response = await fetch('/api/scan-eml', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      let errText = 'Server error';
+      try {
+        const errJson = await response.json();
+        errText = errJson.error || errText;
+      } catch (e) {}
+      throw new Error(errText);
+    }
+
+    const results = await response.json();
+    
+    // Replay logs
+    if (results.logs && results.logs.length > 0) {
+      results.logs.forEach(log => {
+        let type = 'success';
+        if (log.includes('[CRITICAL]')) type = 'critical';
+        else if (log.includes('[WARN]')) type = 'warn';
+        addLogLine(log, type);
+      });
+    }
+
+    updateThreatGauge(results.score || 0, results.threatLevel || 'Unknown');
+    populateParsedHeaders(results.parsedHeaders);
+    
+    // Combine header findings with attachment findings
+    const allFindings = [...(results.findings || [])];
+    if (results.attachments) {
+      results.attachments.forEach(att => {
+        if (att.findings) {
+          allFindings.push(...att.findings);
+        }
+      });
+    }
+    populateFindings(allFindings);
+
+    let verdict = 'EML analysis complete.';
+    if (results.score >= 80) {
+      verdict = 'CRITICAL ALARM: Malicious indicators detected in EML.';
+    } else if (results.score >= 50) {
+      verdict = 'HIGH WARNING: EML contains suspicious indicators or attachments.';
+    }
+    if (_threatVerdictSummary) _threatVerdictSummary.textContent = verdict;
+    
+    addLogLine(`[SUCCESS] EML backend scan complete. Threat Score: ${results.score || 0}%`, 'success');
+  } catch (e) {
+    addLogLine(`[ERROR] EML scan failed: ${e.message}`, 'critical');
+  } finally {
+    scanBtn.removeAttribute('disabled');
+  }
 }
 
 // Email Attachment Handler

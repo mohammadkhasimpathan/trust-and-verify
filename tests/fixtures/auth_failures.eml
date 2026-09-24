@@ -1,0 +1,18 @@
+From: "Billing" <billing@company.com>
+To: customer@example.com
+Subject: Your invoice
+Date: Thu, 24 Sep 2026 11:00:00 +0000
+Message-ID: <invoice@company.com>
+Received: from mail.company.com (mail.company.com [192.0.2.1])
+        by mx.example.com with ESMTP id abc;
+        Thu, 24 Sep 2026 11:00:01 +0000
+Received: from localhost by mail.company.com;
+        Thu, 24 Sep 2026 11:00:00 +0000
+Received-SPF: fail (mx.example.com: domain of billing@company.com does not designate 192.0.2.1 as permitted sender)
+Authentication-Results: mx.example.com;
+        spf=fail smtp.mailfrom=billing@company.com;
+        dkim=fail;
+        dmarc=fail
+Content-Type: text/plain; charset=UTF-8
+
+Please find your invoice attached.

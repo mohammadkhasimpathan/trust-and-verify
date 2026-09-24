@@ -267,9 +267,11 @@ No malicious content.`;
       'message/rfc822'
     );
     assert.equal(res.status, 200);
-    assert.ok(typeof res.body.subject !== 'undefined', 'Expected subject field');
-    assert.ok(res.body.headerResults, 'Expected headerResults');
+    assert.ok(res.body.message, 'Expected message object');
+    assert.ok(typeof res.body.message.subject !== 'undefined', 'Expected subject field in message');
+    assert.ok(res.body.headerResults, 'Expected headerResults (backward compat)');
     assert.ok(Array.isArray(res.body.attachments), 'Expected attachments array');
+    assert.ok(Array.isArray(res.body.findings), 'Expected findings array');
   });
 
   test('missing EML file returns 400', async () => {
