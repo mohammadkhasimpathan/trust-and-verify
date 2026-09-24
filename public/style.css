@@ -339,7 +339,7 @@ input:checked + .slider:before { transform: translateX(18px); }
   display: grid;
   grid-template-columns: 1.15fr 1fr;
   gap: 25px;
-  height: 100%;
+  align-items: start;
 }
 
 @media (max-width: 1024px) {
