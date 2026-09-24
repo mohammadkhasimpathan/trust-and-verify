@@ -37,7 +37,7 @@ test('Phase 8: Security Events', async (t) => {
     const eventId = uuidv4();
     const userId = uuidv4();
     
-    db.prepare('INSERT INTO users (id, email, password_hash) VALUES (?, ?, ?)').run(userId, 'eventtest@example.com', 'hash');
+    db.prepare('INSERT INTO users (id, email, password_hash) VALUES (?, ?, ?)').run(userId, `eventtest_${uuidv4()}@example.com`, 'hash');
     
     db.prepare(`
       INSERT INTO security_events (id, user_id, event_type, success, metadata)
@@ -54,7 +54,7 @@ test('Phase 8: Auth Tokens', async (t) => {
     const tokenId = uuidv4();
     const userId = uuidv4();
     
-    db.prepare('INSERT INTO users (id, email, password_hash) VALUES (?, ?, ?)').run(userId, 'tokentest@example.com', 'hash');
+    db.prepare('INSERT INTO users (id, email, password_hash) VALUES (?, ?, ?)').run(userId, `tokentest_${uuidv4()}@example.com`, 'hash');
     
     db.prepare(`
       INSERT INTO auth_tokens (id, user_id, token_hash, token_type, expires_at)

@@ -499,9 +499,11 @@ app.use(session({
 
 const authRouter = require('./server/auth/authRouter');
 const syncRouter = require('./server/sync/syncRouter');
+const orgRouter = require('./server/organizations/orgRouter');
 
 app.use('/api/auth', authRouter);
 app.use('/api/sync', syncRouter);
+app.use('/api/organizations', orgRouter);
 
 // ─── Start Server ──────────────────────────────────────────────────────────
 if (require.main === module) {

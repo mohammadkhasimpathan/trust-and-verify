@@ -33,6 +33,33 @@ function logSecurityEvent(userId, eventType, success, req, metadata = {}) {
   }
 }
 
+function logOrganizationEvent(orgId, userId, eventType, req, metadata = {}) {
+  try {
+    const id = uuidv4();
+    // Sanitize metadata
+    const safeMetadata = { ...metadata };
+    delete safeMetadata.password;
+    delete safeMetadata.token;
+    delete safeMetadata.secret;
+    delete safeMetadata.code;
+
+    db.prepare(`
+      INSERT INTO organization_events 
+      (id, organization_id, actor_user_id, event_type, metadata)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(
+      id,
+      orgId,
+      userId || null,
+      eventType,
+      JSON.stringify(safeMetadata)
+    );
+  } catch (err) {
+    console.error('[ORG LOG ERROR]', err.message);
+  }
+}
+
 module.exports = {
-  logSecurityEvent
+  logSecurityEvent,
+  logOrganizationEvent
 };

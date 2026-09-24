@@ -1,0 +1,96 @@
+// permissions.js
+
+const PERMISSIONS = {
+  ORG_UPDATE: 'organization.update',
+  ORG_DELETE: 'organization.delete',
+  
+  MEMBERS_READ: 'members.read',
+  MEMBERS_INVITE: 'members.invite',
+  MEMBERS_UPDATE: 'members.update',
+  MEMBERS_REMOVE: 'members.remove',
+
+  TEAMS_READ: 'teams.read',
+  TEAMS_CREATE: 'teams.create',
+  TEAMS_UPDATE: 'teams.update',
+  TEAMS_DELETE: 'teams.delete',
+  TEAMS_MANAGE_MEMBERS: 'teams.manage_members',
+  
+  TRAINING_READ: 'training.read',
+  TRAINING_MANAGE: 'training.manage',
+
+  REPORTS_READ: 'reports.read',
+  REPORTS_EXPORT: 'reports.export',
+
+  SCANS_READ: 'scans.read',
+  SCANS_MANAGE: 'scans.manage',
+
+  AUDIT_READ: 'security_events.read'
+};
+
+const ROLES = {
+  OWNER: 'Owner',
+  ADMIN: 'Admin',
+  MANAGER: 'Manager',
+  MEMBER: 'Member',
+  VIEWER: 'Viewer'
+};
+
+const ROLE_PERMISSIONS = {
+  [ROLES.OWNER]: Object.values(PERMISSIONS),
+  
+  [ROLES.ADMIN]: [
+    PERMISSIONS.ORG_UPDATE,
+    PERMISSIONS.MEMBERS_READ,
+    PERMISSIONS.MEMBERS_INVITE,
+    PERMISSIONS.MEMBERS_UPDATE,
+    PERMISSIONS.MEMBERS_REMOVE,
+    PERMISSIONS.TEAMS_READ,
+    PERMISSIONS.TEAMS_CREATE,
+    PERMISSIONS.TEAMS_UPDATE,
+    PERMISSIONS.TEAMS_DELETE,
+    PERMISSIONS.TEAMS_MANAGE_MEMBERS,
+    PERMISSIONS.TRAINING_READ,
+    PERMISSIONS.TRAINING_MANAGE,
+    PERMISSIONS.REPORTS_READ,
+    PERMISSIONS.REPORTS_EXPORT,
+    PERMISSIONS.SCANS_READ,
+    PERMISSIONS.SCANS_MANAGE,
+    PERMISSIONS.AUDIT_READ
+  ],
+  
+  [ROLES.MANAGER]: [
+    PERMISSIONS.MEMBERS_READ,
+    PERMISSIONS.TEAMS_READ,
+    PERMISSIONS.TEAMS_CREATE,
+    PERMISSIONS.TEAMS_UPDATE,
+    PERMISSIONS.TEAMS_MANAGE_MEMBERS,
+    PERMISSIONS.TRAINING_READ,
+    PERMISSIONS.TRAINING_MANAGE,
+    PERMISSIONS.REPORTS_READ
+  ],
+  
+  [ROLES.MEMBER]: [
+    PERMISSIONS.MEMBERS_READ,
+    PERMISSIONS.TEAMS_READ,
+    PERMISSIONS.TRAINING_READ
+  ],
+  
+  [ROLES.VIEWER]: [
+    PERMISSIONS.MEMBERS_READ,
+    PERMISSIONS.TEAMS_READ,
+    PERMISSIONS.TRAINING_READ,
+    PERMISSIONS.REPORTS_READ
+  ]
+};
+
+function hasPermission(role, permission) {
+  const perms = ROLE_PERMISSIONS[role] || [];
+  return perms.includes(permission);
+}
+
+module.exports = {
+  PERMISSIONS,
+  ROLES,
+  ROLE_PERMISSIONS,
+  hasPermission
+};
